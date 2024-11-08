@@ -15,10 +15,6 @@ from multilspy.multilspy_utils import FileUtils
 
 @dataclass
 class MultilspyContext:
-    """
-    Stores the context for a Multilspy test.
-    """
-
     config: MultilspyConfig
     logger: MultilspyLogger
     source_directory: str
@@ -26,9 +22,6 @@ class MultilspyContext:
 
 @contextlib.contextmanager
 def create_test_context(params: dict) -> Iterator[MultilspyContext]:
-    """
-    Creates a test context for the given parameters.
-    """
     config = MultilspyConfig.from_dict(params)
     logger = MultilspyLogger()
 
@@ -53,13 +46,12 @@ def create_test_context(params: dict) -> Iterator[MultilspyContext]:
 
 
 @pytest.mark.asyncio
-async def test_multilspy_python_black():
+async def test_multilspy_request_definition():
     """
-    Test the working of multilspy with python repository - black
+    Test request_definition LSP request in multilspy with python repository - black
     """
-    code_language = Language.PYTHON
     params = {
-        'code_language': code_language,
+        'code_language': Language.PYTHON,
         'repo_url': 'https://github.com/psf/black/',
         'repo_commit': 'f3b50e466969f9142393ec32a4b2a383ffbe5f23',
     }
@@ -68,9 +60,6 @@ async def test_multilspy_python_black():
             context.config, context.logger, context.source_directory
         )
 
-        # All the communication with the language server must be performed inside the context manager
-        # The server process is started when the context manager is entered and is terminated when the context manager is exited.
-        # The context manager is an asynchronous context manager, so it must be used with async with.
         async with lsp.start_server():
             result = await lsp.request_definition(
                 str(PurePath('src/black/mode.py')), 163, 4
@@ -85,6 +74,23 @@ async def test_multilspy_python_black():
                 'end': {'line': 163, 'character': 20},
             }
 
+
+@pytest.mark.asyncio
+async def test_multilspy_request_references():
+    """
+    Test request_references LSP request in multilspy with python repository - black
+    """
+    params = {
+        'code_language': Language.PYTHON,
+        'repo_url': 'https://github.com/psf/black/',
+        'repo_commit': 'f3b50e466969f9142393ec32a4b2a383ffbe5f23',
+    }
+    with create_test_context(params) as context:
+        lsp = LanguageServer.create(
+            context.config, context.logger, context.source_directory
+        )
+
+        async with lsp.start_server():
             result = await lsp.request_references(
                 str(PurePath('src/black/mode.py')), 163, 4
             )
