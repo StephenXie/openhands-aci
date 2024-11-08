@@ -20,6 +20,7 @@ gitpython = "*"
 tree-sitter = "0.21.3"
 grep-ast = "0.3.3"
 diskcache = "^5.6.3"
+multilspy = {git = "https://github.com/microsoft/multilspy.git"}
 
 
 [tool.poetry.group.dev.dependencies]
@@ -29,6 +30,7 @@ pre-commit = "^4.0.1"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.3"
+pytest-asyncio = "^0.24.0"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
