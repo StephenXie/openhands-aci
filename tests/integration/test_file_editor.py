@@ -18,6 +18,18 @@ def editor(tmp_path):
     return editor, test_file
 
 
+@pytest.fixture
+def editor_py(tmp_path):
+    editor = OHEditor()
+    # Set up a temporary directory with test files
+    test_file = tmp_path / 'test.py'
+    test_file.write_text("""def test():
+    print("This is a test file.")
+    print("This file is for testing purposes.")
+""")
+    return editor, test_file
+
+
 def test_view_file(editor):
     editor, test_file = editor
     result = editor(command='view', path=str(test_file))
@@ -94,6 +106,31 @@ Review the changes and make sure they are as expected. Edit the file again if ne
     assert 'This is a sample file.' in test_file.read_text()
 
 
+def test_str_replace_with_linting_error(editor_py):
+    editor, test_file = editor_py
+    result = editor(
+        command='str_replace',
+        path=str(test_file),
+        old_str='print("This is a test file.")',
+        new_str='print("This is a sample file."',
+        enable_linting=True,
+    )
+    assert isinstance(result, CLIResult)
+    assert (
+        result.output
+        == f"""The file {test_file} has been edited. Here's the result of running `cat -n` on a snippet of {test_file}:
+     1\tdef test():
+     2\t    print("This is a sample file."
+     3\t    print("This file is for testing purposes.")
+     4\t
+
+Linting issues found in the changes:
+- Line 2, Column 11: E999 SyntaxError: '(' was never closed
+
+Review the changes and make sure they are as expected. Edit the file again if necessary."""
+    )
+
+
 def test_str_replace_error_multiple_occurrences(editor):
     editor, test_file = editor
     with pytest.raises(ToolError) as exc_info:
@@ -125,7 +162,6 @@ def test_insert_no_linting(editor):
     )
     assert isinstance(result, CLIResult)
     assert 'Inserted line' in test_file.read_text()
-    print(result.output)
     assert (
         result.output
         == f"""The file {test_file} has been edited. Here's the result of running `cat -n` on a snippet of the edited file:
@@ -147,7 +183,6 @@ def test_insert_with_linting(editor):
     )
     assert isinstance(result, CLIResult)
     assert 'Inserted line' in test_file.read_text()
-    print(result.output)
     assert (
         result.output
         == f"""The file {test_file} has been edited. Here's the result of running `cat -n` on a snippet of the edited file:
