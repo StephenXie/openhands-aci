@@ -1,0 +1,7 @@
+This is a Python repository for the OpenHands ACI, a library implementing
+Agent-Computer Interface (ACI) designed for software development agents.
+
+- Setup: `poetry install && make install-pre-commit-hooks`
+- Testing: Tests can be run with `poetry run pytest`
+- Linting: Linting is done according to `dev_config/python/.pre-commit-config.yaml`, and should be done before making commits
+- Version bumping: When bumping the version, update the `pyproject.toml` file
