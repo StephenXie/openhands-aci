@@ -61,9 +61,7 @@ class OHEditor:
         **kwargs,
     ) -> ToolResult | CLIResult:
         _path = Path(path)
-        _new_path = Path(path)
         self.validate_path(command, _path)
-        self.validate_path(command, _new_path)
         if command == 'view':
             return self.view(_path, lines_range)
         elif command == 'create':
@@ -97,7 +95,11 @@ class OHEditor:
                 raise EditorToolParameterMissingError(command, 'lines_range')
             if insert_line is None:
                 raise EditorToolParameterMissingError(command, 'insert_line')
-            return self.move_code_block(_path, lines_range, _dst_file, insert_line)
+            if not dst_path:
+                raise EditorToolParameterMissingError(command, 'dst_path')
+            _dst_path = Path(dst_path)
+            self.validate_path(command, _dst_path)
+            return self.move_code_block(_path, lines_range, _dst_path, insert_line)
         elif command == 'undo_edit':
             return self.undo_edit(_path)
 
@@ -190,7 +192,7 @@ class OHEditor:
             )
 
         num_lines = len(file_content_lines)
-        _validate_range(view_range, num_lines)
+        self._validate_range(view_range, num_lines)
 
         start_line, end_line = view_range
         if end_line == -1:
@@ -280,7 +282,7 @@ class OHEditor:
         file_text_lines = file_text.split('\n')
         num_lines = len(file_text_lines)
 
-        _validate_range(lines_range, num_lines)
+        self._validate_range(lines_range, num_lines)
 
         start_line, end_line = lines_range # inclusive
 
@@ -289,9 +291,9 @@ class OHEditor:
             + file_text_lines[end_line + 1:]
         )
         snippet_lines = (
-            file_text_lines[max(0, insert_line - SNIPPET_CONTEXT_WINDOW) : start_line]
+            file_text_lines[max(0, start_line - SNIPPET_CONTEXT_WINDOW) : start_line]
             + file_text_lines[
-                end_line + 1 : min(num_lines, insert_line + SNIPPET_CONTEXT_WINDOW)
+                end_line + 1 : min(num_lines, end_line + SNIPPET_CONTEXT_WINDOW)
             ]
         )
         new_file_text = '\n'.join(new_file_text_lines)
@@ -304,29 +306,29 @@ class OHEditor:
         success_message += self._make_output(
             snippet,
             'a snippet of the edited file',
-            max(1, insert_line - SNIPPET_CONTEXT_WINDOW + 1),
+            # max(1, start_line - SNIPPET_CONTEXT_WINDOW + 1),
         )
-
-        if enable_linting:
-            # Run linting on the changes
-            lint_results = self._run_linting(file_text, new_file_text, path)
-            success_message += '\n' + lint_results + '\n'
 
         success_message += 'Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary.'
         return CLIResult(output=success_message)
 
-    def move_code_block(from_file: Path, from_range: list[int], dst_file: Path, insert_line: int) -> CLIResult:
+    def move_code_block(self, from_file: Path, from_range: list[int], dst_file: Path, insert_line: int) -> CLIResult:
         """
         Move a block of code from one file to another.
         """
+        file_content = self.read_file(from_file)
         file_content_lines = file_content.split('\n')
-        start_line, end_line = view_range
+        start_line, end_line = from_range
         code_block = '\n'.join(
-            file_content_lines[start_line - 1 :] if end_line == -1 else 
-            file_content_lines[start_line - 1 : end_line]
+            file_content_lines[start_line:] if end_line == -1 else 
+            file_content_lines[start_line: end_line + 1]
         )
-        self.delete(from_file, from_range)
-        self.insert(dst_file, insert_line, code_block, True)
+        delete_result = self.delete(from_file, from_range)
+        insert_result = self.insert(dst_file, insert_line, code_block, True)
+
+        return CLIResult(
+            output=f'Code block moved from {from_file} to {dst_file}.\n{delete_result.output}\n{insert_result.output}'
+        )
 
     def validate_path(self, command: Command, path: Path) -> None:
         """
