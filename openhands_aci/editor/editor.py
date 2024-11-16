@@ -1,9 +1,11 @@
+import asyncio
 import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Literal, get_args
 
 from openhands_aci.linter import DefaultLinter
+from openhands_aci.lsp.manager import LSPManager
 from openhands_aci.utils.shell import run_shell_cmd
 
 from .config import SNIPPET_CONTEXT_WINDOW
@@ -20,8 +22,9 @@ Command = Literal[
     'str_replace',
     'insert',
     'undo_edit',
-    # 'jump_to_definition', TODO:
-    # 'find_references' TODO:
+    'jump_to_definition',
+    'find_references',
+    'hover',
 ]
 
 
@@ -32,6 +35,7 @@ class OHEditor:
     - create
     - navigate
     - edit files
+    - use LSP features
     The tool parameters are defined by Anthropic and are not editable.
 
     Original implementation: https://github.com/anthropics/anthropic-quickstarts/blob/main/computer-use-demo/computer_use_demo/tools/edit.py
@@ -42,6 +46,7 @@ class OHEditor:
     def __init__(self):
         self._file_history: dict[Path, list[str]] = defaultdict(list)
         self._linter = DefaultLinter()
+        self._lsp_manager = LSPManager()
 
     def __call__(
         self,
@@ -62,7 +67,7 @@ class OHEditor:
             return self.view(_path, view_range)
         elif command == 'create':
             if not file_text:
-                raise
+                raise EditorToolParameterMissingError(command, 'file_text')
             self.write_file(_path, file_text)
             self._file_history[_path].append(file_text)
             return ToolResult(output=f'File created successfully at: {_path}')
@@ -84,6 +89,13 @@ class OHEditor:
             return self.insert(_path, insert_line, new_str, enable_linting)
         elif command == 'undo_edit':
             return self.undo_edit(_path)
+        elif command in ['jump_to_definition', 'find_references', 'hover']:
+            if not old_str:
+                raise EditorToolParameterMissingError(command, 'old_str')
+            line, character = self._get_position_from_str(_path, old_str)
+            return asyncio.run(
+                self._handle_lsp_command(command, _path, line, character)
+            )
 
         raise ToolError(
             f'Unrecognized command {command}. The allowed commands for the {self.TOOL_NAME} tool are: {", ".join(get_args(Command))}'
@@ -383,3 +395,42 @@ class OHEditor:
                     f'- Line {result.line}, Column {result.column}: {result.message}'
                 )
             return '\n'.join(output) + '\n'
+
+    async def _handle_lsp_command(
+        self, command: Command, path: Path, line: int, character: int
+    ) -> CLIResult:
+        """Handle LSP-related commands"""
+        try:
+            async with self._lsp_manager.get_server_for_file(path) as server:
+                if command == 'jump_to_definition':
+                    result = await server.request_definition(str(path), line, character)
+                elif command == 'find_references':
+                    result = await server.request_references(str(path), line, character)
+                elif command == 'hover':
+                    result = await server.request_hover(str(path), line, character)
+                else:
+                    raise ToolError(f'Unsupported LSP command: {command}')
+
+                return CLIResult(output=str(result))
+        except Exception as e:
+            raise ToolError(
+                f'Error running LSP command: {e}, please try another command.'
+            ) from None
+
+    def _get_position_from_str(self, path: Path, target_str: str) -> tuple[int, int]:
+        """
+        Find the line and character position of target_str in the file.
+        Returns a tuple of (line_number, character_position).
+        Line numbers are 0-based.
+        """
+        file_content = self.read_file(path)
+
+        # Find the line number and character position
+        lines = file_content.split('\n')
+        for line_num, line in enumerate(lines):
+            if target_str in line:
+                char_pos = line.index(target_str)
+                # Return 0-based line and character positions
+                return line_num, char_pos
+
+        raise ToolError(f'Could not find the string "{target_str}" in {path}')
