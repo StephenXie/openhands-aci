@@ -284,11 +284,10 @@ class OHEditor:
 
         self._validate_range(lines_range, num_lines)
 
-        start_line, end_line = lines_range # inclusive
+        start_line, end_line = lines_range  # inclusive
 
         new_file_text_lines = (
-            file_text_lines[:start_line]
-            + file_text_lines[end_line + 1:]
+            file_text_lines[:start_line] + file_text_lines[end_line + 1:]
         )
         snippet_lines = (
             file_text_lines[max(0, start_line - SNIPPET_CONTEXT_WINDOW) : start_line]
@@ -312,7 +311,9 @@ class OHEditor:
         success_message += 'Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary.'
         return CLIResult(output=success_message)
 
-    def move_code_block(self, from_file: Path, from_range: list[int], dst_file: Path, insert_line: int) -> CLIResult:
+    def move_code_block(
+            self, from_file: Path, from_range: list[int], dst_file: Path, insert_line: int
+        ) -> CLIResult:
         """
         Move a block of code from one file to another.
         """
@@ -320,8 +321,9 @@ class OHEditor:
         file_content_lines = file_content.split('\n')
         start_line, end_line = from_range
         code_block = '\n'.join(
-            file_content_lines[start_line:] if end_line == -1 else 
-            file_content_lines[start_line: end_line + 1]
+            file_content_lines[start_line:]
+            if end_line == -1
+            else file_content_lines[start_line: end_line + 1]
         )
         delete_result = self.delete(from_file, from_range)
         insert_result = self.insert(dst_file, insert_line, code_block, True)

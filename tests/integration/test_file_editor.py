@@ -159,12 +159,17 @@ No linting issues found in the changes.
 Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."""
     )
 
+
 def test_move_code_block(editor):
     editor, test_file = editor
-    test_file.write_text('This is a test file.\nThis file is for testing purposes.\nfoo\nbar\nbaz')
+    test_file.write_text(
+        'This is a test file.\nThis file is for testing purposes.\nfoo\nbar\nbaz'
+    )
 
     second_test_file = test_file.parent / 'second_test.txt'
-    second_test_file.write_text('This is also a test file.\nSome text should be added above this.')
+    second_test_file.write_text(
+        'This is also a test file.\nSome text should be added above this.'
+    )
 
     result = editor(
         command='move_code_block',
