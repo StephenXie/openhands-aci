@@ -171,3 +171,271 @@ async def test_multilspy_request_references():
                     },
                 },
             ]
+
+
+@pytest.mark.asyncio
+async def test_multilspy_request_hover():
+    """
+    Test request_hover LSP request in multilspy with python repository - OpenHands
+    """
+    params = {
+        'code_language': Language.PYTHON,
+        'repo_url': 'https://github.com/All-Hands-AI/OpenHands/',
+        'repo_commit': '97f3249205e25abafc13e2c42037dd9b309fbe73',
+    }
+    with create_test_context(params) as context:
+        lsp = LanguageServer.create(
+            context.config, context.logger, context.source_directory
+        )
+
+        async with lsp.start_server():
+            result = await lsp.request_hover(
+                str(PurePath('openhands/controller/agent_controller.py')),
+                436,
+                16,  # async def _step(self) -> None:
+            )
+
+            assert isinstance(result, dict)
+            assert (
+                result.get('contents').get('value')
+                == """```python
+def _step(self) -> None
+```
+---
+Executes a single step of the parent or delegate agent. Detects stuck agents and limits on the number of iterations and the task budget.
+**Full name:** `openhands.controller.agent_controller.AgentController._step`"""
+            )
+
+
+@pytest.mark.asyncio
+async def test_multilspy_request_document_symbols():
+    """
+    Test request_document_symbols LSP request in multilspy with python repository - OpenHands
+    """
+    params = {
+        'code_language': Language.PYTHON,
+        'repo_url': 'https://github.com/All-Hands-AI/OpenHands/',
+        'repo_commit': '97f3249205e25abafc13e2c42037dd9b309fbe73',
+    }
+    with create_test_context(params) as context:
+        lsp = LanguageServer.create(
+            context.config, context.logger, context.source_directory
+        )
+
+        async with lsp.start_server():
+            result = await lsp.request_document_symbols(
+                str(PurePath('openhands/controller/action_parser.py'))
+            )
+            symbol_lists, _ = result
+            assert isinstance(symbol_lists, list)
+            assert len(symbol_lists) == 16
+            assert symbol_lists == [
+                {
+                    'detail': 'class ABC',
+                    'kind': 5,
+                    'name': 'ABC',
+                    'range': {
+                        'start': {'character': 0, 'line': 0},
+                        'end': {'character': 35, 'line': 0},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 16, 'line': 0},
+                        'end': {'character': 19, 'line': 0},
+                    },
+                },
+                {
+                    'detail': 'def abstractmethod',
+                    'kind': 12,
+                    'name': 'abstractmethod',
+                    'range': {
+                        'start': {'character': 0, 'line': 0},
+                        'end': {'character': 35, 'line': 0},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 21, 'line': 0},
+                        'end': {'character': 35, 'line': 0},
+                    },
+                },
+                {
+                    'detail': 'class Action',
+                    'kind': 5,
+                    'name': 'Action',
+                    'range': {
+                        'start': {'character': 0, 'line': 2},
+                        'end': {'character': 42, 'line': 2},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 36, 'line': 2},
+                        'end': {'character': 42, 'line': 2},
+                    },
+                },
+                {
+                    'detail': 'class ActionParseError',
+                    'kind': 5,
+                    'name': 'ActionParseError',
+                    'range': {
+                        'start': {'character': 0, 'line': 5},
+                        'end': {'character': 25, 'line': 12},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 6, 'line': 5},
+                        'end': {'character': 22, 'line': 5},
+                    },
+                },
+                {
+                    'detail': 'def __init__',
+                    'kind': 6,
+                    'name': '__init__',
+                    'range': {
+                        'start': {'character': 4, 'line': 8},
+                        'end': {'character': 26, 'line': 9},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 8},
+                        'end': {'character': 16, 'line': 8},
+                    },
+                },
+                {
+                    'detail': 'self.error = error',
+                    'kind': 7,
+                    'name': 'error',
+                    'range': {
+                        'start': {'character': 8, 'line': 9},
+                        'end': {'character': 26, 'line': 9},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 13, 'line': 9},
+                        'end': {'character': 18, 'line': 9},
+                    },
+                },
+                {
+                    'detail': 'def __str__',
+                    'kind': 6,
+                    'name': '__str__',
+                    'range': {
+                        'start': {'character': 4, 'line': 11},
+                        'end': {'character': 25, 'line': 12},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 11},
+                        'end': {'character': 15, 'line': 11},
+                    },
+                },
+                {
+                    'detail': 'class ResponseParser',
+                    'kind': 5,
+                    'name': 'ResponseParser',
+                    'range': {
+                        'start': {'character': 0, 'line': 15},
+                        'end': {'character': 12, 'line': 60},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 6, 'line': 15},
+                        'end': {'character': 20, 'line': 15},
+                    },
+                },
+                {
+                    'detail': 'def __init__',
+                    'kind': 6,
+                    'name': '__init__',
+                    'range': {
+                        'start': {'character': 4, 'line': 20},
+                        'end': {'character': 32, 'line': 24},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 20},
+                        'end': {'character': 16, 'line': 20},
+                    },
+                },
+                {
+                    'detail': 'self.action_parsers = []',
+                    'kind': 7,
+                    'name': 'action_parsers',
+                    'range': {
+                        'start': {'character': 8, 'line': 24},
+                        'end': {'character': 32, 'line': 24},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 13, 'line': 24},
+                        'end': {'character': 27, 'line': 24},
+                    },
+                },
+                {
+                    'detail': 'def parse',
+                    'kind': 6,
+                    'name': 'parse',
+                    'range': {
+                        'start': {'character': 4, 'line': 27},
+                        'end': {'character': 12, 'line': 36},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 27},
+                        'end': {'character': 13, 'line': 27},
+                    },
+                },
+                {
+                    'detail': 'def parse_response',
+                    'kind': 6,
+                    'name': 'parse_response',
+                    'range': {
+                        'start': {'character': 4, 'line': 39},
+                        'end': {'character': 12, 'line': 48},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 39},
+                        'end': {'character': 22, 'line': 39},
+                    },
+                },
+                {
+                    'detail': 'def parse_action',
+                    'kind': 6,
+                    'name': 'parse_action',
+                    'range': {
+                        'start': {'character': 4, 'line': 51},
+                        'end': {'character': 22, 'line': 39},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 51},
+                        'end': {'character': 20, 'line': 51},
+                    },
+                },
+                {
+                    'detail': 'class ActionParser',
+                    'kind': 5,
+                    'name': 'ActionParser',
+                    'range': {
+                        'start': {'character': 0, 'line': 63},
+                        'end': {'character': 12, 'line': 76},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 6, 'line': 63},
+                        'end': {'character': 18, 'line': 63},
+                    },
+                },
+                {
+                    'detail': 'def check_condition',
+                    'kind': 6,
+                    'name': 'check_condition',
+                    'range': {
+                        'start': {'character': 4, 'line': 69},
+                        'end': {'character': 12, 'line': 71},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 69},
+                        'end': {'character': 23, 'line': 69},
+                    },
+                },
+                {
+                    'detail': 'def parse',
+                    'kind': 6,
+                    'name': 'parse',
+                    'range': {
+                        'start': {'character': 4, 'line': 74},
+                        'end': {'character': 12, 'line': 76},
+                    },
+                    'selectionRange': {
+                        'start': {'character': 8, 'line': 74},
+                        'end': {'character': 13, 'line': 74},
+                    },
+                },
+            ]
