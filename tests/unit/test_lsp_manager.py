@@ -153,12 +153,15 @@ if __name__ == "__main__":
 
     # Test jump to definition
     result = editor(command='jump_to_definition', path=str(main_file), old_str='greet')
+    # print(f'\nJump to definition: {result.output}\n')
     assert 'module.py' in result.output
 
     # Test find references
     result = editor(command='find_references', path=str(module_file), old_str='greet')
+    # print(f'\nFind references: {result.output}\n')
     assert 'main.py' in result.output
 
     # Test hover
     result = editor(command='hover', path=str(module_file), old_str='name')
+    # print(f'\nHover: {result.output}\n')
     assert 'str' in result.output  # Should show type hint info

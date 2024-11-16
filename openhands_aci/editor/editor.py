@@ -401,14 +401,32 @@ class OHEditor:
             with self._lsp_manager.get_server_for_file(path) as server:
                 if command == 'jump_to_definition':
                     result = server.request_definition(str(path), line, character)
+                    if not result:
+                        return CLIResult(output='No definition found for the target.')
+
+                    if isinstance(result, list):
+                        formatted = ['Found definitions:']
+                        for loc in result:
+                            formatted.append(self._format_location(loc))
+                        return CLIResult(output='\n\n'.join(formatted))
+                    else:
+                        return CLIResult(output=self._format_location(result))
+
                 elif command == 'find_references':
                     result = server.request_references(str(path), line, character)
+                    if not result:
+                        return CLIResult(output='No references found for the target.')
+
+                    formatted = ['Found references:']
+                    for loc in result:
+                        formatted.append(self._format_location(loc))
+                    return CLIResult(output='\n\n'.join(formatted))
+
                 elif command == 'hover':
                     result = server.request_hover(str(path), line, character)
+                    return CLIResult(output=self._format_hover(result))
                 else:
                     raise ToolError(f'Unsupported LSP command: {command}')
-
-                return CLIResult(output=str(result))
         except Exception as e:
             raise ToolError(
                 f'Error running LSP command: {e}, please try another command.'
@@ -431,3 +449,58 @@ class OHEditor:
                 return line_num, char_pos
 
         raise ToolError(f'Could not find the string "{target_str}" in {path}')
+
+    def _format_location(self, location: dict) -> str:
+        """Format a location object from LSP response"""
+        file_path = location.get('relativePath', location.get('uri', 'unknown'))
+        range_info = location.get('range', {})
+        start = range_info.get('start', {})
+        _end = range_info.get('end', {})
+
+        # Read the line content from the file if possible
+        line_content = ''
+        if Path(file_path).exists():
+            try:
+                with open(file_path) as f:
+                    lines = f.readlines()
+                    line_num = start.get('line', 0)
+                    if 0 <= line_num < len(lines):
+                        line_content = f'\n    Content: {lines[line_num].strip()}'
+            except Exception:
+                pass
+
+        return (
+            f"Location:\n"
+            f"    File: {file_path}\n"
+            f"    Line: {start.get('line', 0) + 1}, "
+            f"Column: {start.get('character', 0) + 1}"
+            f"{line_content}"
+        )
+
+    def _format_hover(self, hover_info: dict) -> str:
+        """Format hover information from LSP response"""
+        if not hover_info:
+            return 'No hover information available'
+
+        contents = hover_info.get('contents', {})
+        if isinstance(contents, dict):
+            # Handle MarkedString format
+            value = contents.get('value', '')
+            language = contents.get('language', '')
+            return f'Type Information:\n    {value}\n    Language: {language}'
+        elif isinstance(contents, list):
+            # Handle multiple content items
+            formatted = ['Hover Information:']
+            for item in contents:
+                if isinstance(item, dict):
+                    value = item.get('value', '')
+                    language = item.get('language', '')
+                    formatted.append(f'    {value}')
+                    if language:
+                        formatted.append(f'    Language: {language}')
+                else:
+                    formatted.append(f'    {item}')
+            return '\n'.join(formatted)
+        else:
+            # Handle plain string
+            return f'Hover Information:\n    {contents}'
