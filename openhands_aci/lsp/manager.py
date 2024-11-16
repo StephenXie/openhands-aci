@@ -1,20 +1,20 @@
-from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-from multilspy import LanguageServer
+from multilspy import SyncLanguageServer
 from multilspy.multilspy_config import Language, MultilspyConfig
-
-from openhands_aci.utils.logger import oh_aci_logger as logger
+from multilspy.multilspy_logger import MultilspyLogger
 
 
 class LSPManager:
     """Manages LSP server instances for different languages"""
 
-    def __init__(self):
-        self._servers: dict[Language, LanguageServer] = {}
-        self._active_server: Optional[LanguageServer] = None
-        self._source_dir = Path.cwd()
+    def __init__(self, workspace_dir: Optional[Path] = None):
+        self._servers: dict[Language, SyncLanguageServer] = {}
+        self._active_server: Optional[SyncLanguageServer] = None
+        self._source_dir = workspace_dir or Path.cwd()
+        self._logger = MultilspyLogger()
 
     def _get_language(self, file_path: Path) -> Language:
         ext = file_path.suffix.lower()
@@ -33,19 +33,18 @@ class LSPManager:
         else:
             raise ValueError(f'Unsupported file extension for LSP: {ext}')
 
-    def _get_server(self, language: Language) -> LanguageServer:
+    def _get_server(self, language: Language) -> SyncLanguageServer:
         if language not in self._servers:
             config = MultilspyConfig(
-                code_language=language,
-                source_directory=str(self._source_dir),
+                code_language=language, trace_lsp_communication=False
             )
-            self._servers[language] = LanguageServer.create(
-                config, logger, str(self._source_dir)
+            self._servers[language] = SyncLanguageServer.create(
+                config, self._logger, str(self._source_dir)
             )
         return self._servers[language]
 
-    @asynccontextmanager
-    async def get_server_for_file(self, file_path: Path):
+    @contextmanager
+    def get_server_for_file(self, file_path: Path):
         """Get an LSP server instance for the given file"""
         language = self._get_language(file_path)
         server = self._get_server(language)
@@ -55,7 +54,7 @@ class LSPManager:
 
         self._active_server = server
         try:
-            async with server.start_server():
+            with server.start_server():
                 yield server
         finally:
             self._active_server = None

@@ -1,8 +1,7 @@
-import asyncio
 import tempfile
 from collections import defaultdict
 from pathlib import Path
-from typing import Literal, get_args
+from typing import Literal, Optional, get_args
 
 from openhands_aci.linter import DefaultLinter
 from openhands_aci.lsp.manager import LSPManager
@@ -43,10 +42,10 @@ class OHEditor:
 
     TOOL_NAME = 'oh_editor'
 
-    def __init__(self):
+    def __init__(self, workspace: Optional[Path] = None):
         self._file_history: dict[Path, list[str]] = defaultdict(list)
         self._linter = DefaultLinter()
-        self._lsp_manager = LSPManager()
+        self._lsp_manager = LSPManager(workspace)
 
     def __call__(
         self,
@@ -93,9 +92,7 @@ class OHEditor:
             if not old_str:
                 raise EditorToolParameterMissingError(command, 'old_str')
             line, character = self._get_position_from_str(_path, old_str)
-            return asyncio.run(
-                self._handle_lsp_command(command, _path, line, character)
-            )
+            return self._handle_lsp_command(command, _path, line, character)
 
         raise ToolError(
             f'Unrecognized command {command}. The allowed commands for the {self.TOOL_NAME} tool are: {", ".join(get_args(Command))}'
@@ -396,18 +393,18 @@ class OHEditor:
                 )
             return '\n'.join(output) + '\n'
 
-    async def _handle_lsp_command(
+    def _handle_lsp_command(
         self, command: Command, path: Path, line: int, character: int
     ) -> CLIResult:
         """Handle LSP-related commands"""
         try:
-            async with self._lsp_manager.get_server_for_file(path) as server:
+            with self._lsp_manager.get_server_for_file(path) as server:
                 if command == 'jump_to_definition':
-                    result = await server.request_definition(str(path), line, character)
+                    result = server.request_definition(str(path), line, character)
                 elif command == 'find_references':
-                    result = await server.request_references(str(path), line, character)
+                    result = server.request_references(str(path), line, character)
                 elif command == 'hover':
-                    result = await server.request_hover(str(path), line, character)
+                    result = server.request_hover(str(path), line, character)
                 else:
                     raise ToolError(f'Unsupported LSP command: {command}')
 

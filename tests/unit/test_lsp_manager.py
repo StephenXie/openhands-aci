@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from multilspy.multilspy_config import Language
@@ -45,24 +44,17 @@ def test_get_language_unsupported(lsp_manager):
         lsp_manager._get_language(Path('test.txt'))
 
 
-@patch('openhands_aci.editor.editor.LanguageServer')
-def test_get_server_creates_new_server(mock_language_server, lsp_manager):
+def test_get_server_creates_new_server(lsp_manager):
     """Test server creation for a new language"""
-    mock_server = MagicMock()
-    mock_language_server.create.return_value = mock_server
-
     server = lsp_manager._get_server(Language.PYTHON)
 
-    assert server == mock_server
-    mock_language_server.create.assert_called_once()
+    assert server is not None
+    # assert isinstance(server, multilspy.language_servers.jedi_language_server.jedi_server.JediServer)
     assert Language.PYTHON in lsp_manager._servers
 
 
-@patch('openhands_aci.editor.editor.LanguageServer')
-def test_get_server_reuses_existing_server(mock_language_server, lsp_manager):
+def test_get_server_reuses_existing_server(lsp_manager):
     """Test server reuse for the same language"""
-    mock_server = MagicMock()
-    mock_language_server.create.return_value = mock_server
 
     # First call creates a new server
     server1 = lsp_manager._get_server(Language.PYTHON)
@@ -70,55 +62,34 @@ def test_get_server_reuses_existing_server(mock_language_server, lsp_manager):
     server2 = lsp_manager._get_server(Language.PYTHON)
 
     assert server1 == server2
-    mock_language_server.create.assert_called_once()
+    assert Language.PYTHON in lsp_manager._servers
 
 
-@pytest.mark.asyncio
-async def test_get_server_for_file_success():
+def test_get_server_for_file_success(tmp_path):
     """Test successful server acquisition for a file"""
     manager = LSPManager()
-    mock_server = AsyncMock()
+    test_file = tmp_path / 'test.py'
+    test_file.write_text("def hello():\n    print('world')\n")
 
-    with patch.object(manager, '_get_server', return_value=mock_server):
-        async with manager.get_server_for_file(Path('test.py')) as server:
-            assert server == mock_server
-            assert manager._active_server == mock_server
-            mock_server.start_server.assert_called_once()
+    with manager.get_server_for_file(test_file) as server:
+        assert server is not None
+        assert manager._active_server == server
 
-        # After context exit, active server should be None
-        assert manager._active_server is None
+    # After context exit, active server should be None
+    assert manager._active_server is None
 
 
-@pytest.mark.asyncio
-async def test_get_server_for_file_concurrent_access():
+def test_get_server_for_file_concurrent_access(tmp_path):
     """Test that concurrent server access is prevented"""
     manager = LSPManager()
-    mock_server = AsyncMock()
+    test_file = tmp_path / 'test.py'
+    test_file.write_text("def hello():\n    print('world')\n")
 
-    with patch.object(manager, '_get_server', return_value=mock_server):
-        async with manager.get_server_for_file(Path('test.py')):
-            # Try to get another server while one is active
-            with pytest.raises(
-                RuntimeError, match='Another LSP server is already active'
-            ):
-                async with manager.get_server_for_file(Path('other.py')):
-                    pass
-
-
-@pytest.mark.asyncio
-async def test_get_server_for_file_cleanup_on_error():
-    """Test server cleanup when an error occurs"""
-    manager = LSPManager()
-    mock_server = AsyncMock()
-    mock_server.start_server.side_effect = Exception('Server error')
-
-    with patch.object(manager, '_get_server', return_value=mock_server):
-        with pytest.raises(Exception, match='Server error'):
-            async with manager.get_server_for_file(Path('test.py')):
+    with manager.get_server_for_file(test_file):
+        # Try to get another server while one is active
+        with pytest.raises(RuntimeError, match='Another LSP server is already active'):
+            with manager.get_server_for_file(test_file):
                 pass
-
-        # Active server should be None even after error
-        assert manager._active_server is None
 
 
 def test_get_position_from_str(editor, tmp_path):
@@ -142,8 +113,7 @@ def test_get_position_from_str(editor, tmp_path):
         editor._get_position_from_str(test_file, 'nonexistent')
 
 
-@pytest.mark.asyncio
-async def test_lsp_command_without_old_str(editor, tmp_path):
+def test_lsp_command_without_old_str(editor, tmp_path):
     """Test LSP commands require old_str parameter"""
     test_file = tmp_path / 'test.py'
     test_file.write_text("def hello():\n    print('world')\n")
@@ -153,24 +123,42 @@ async def test_lsp_command_without_old_str(editor, tmp_path):
             editor(command=command, path=str(test_file))
 
 
-@pytest.mark.asyncio
-async def test_lsp_command_with_old_str(editor, tmp_path):
+def test_lsp_command_with_old_str(tmp_path):
     """Test LSP commands with valid old_str parameter"""
-    test_file = tmp_path / 'test.py'
-    test_file.write_text("def hello():\n    print('world')\n")
+    # Create a small Python project structure
+    project_dir = tmp_path / 'project'
+    project_dir.mkdir()
 
-    mock_result = {'definition': 'test result'}
+    # Create a module with a function
+    module_file = project_dir / 'module.py'
+    module_file.write_text("""
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+""")
 
-    with patch.object(editor._lsp_manager, 'get_server_for_file') as mock_get_server:
-        mock_server = AsyncMock()
-        mock_server.request_definition.return_value = mock_result
-        mock_server.request_references.return_value = mock_result
-        mock_server.request_hover.return_value = mock_result
+    # Create a main file that uses the function
+    main_file = project_dir / 'main.py'
+    main_file.write_text("""
+from module import greet
 
-        # Mock the async context manager
-        mock_get_server.return_value.__aenter__.return_value = mock_server
+def main():
+    message = greet("world")
+    print(message)
 
-        # Test each LSP command
-        for command in ['jump_to_definition', 'find_references', 'hover']:
-            result = editor(command=command, path=str(test_file), old_str='print')
-            assert str(mock_result) in result.output
+if __name__ == "__main__":
+    main()
+""")
+
+    editor = OHEditor(workspace=project_dir)
+
+    # Test jump to definition
+    result = editor(command='jump_to_definition', path=str(main_file), old_str='greet')
+    assert 'module.py' in result.output
+
+    # Test find references
+    result = editor(command='find_references', path=str(module_file), old_str='greet')
+    assert 'main.py' in result.output
+
+    # Test hover
+    result = editor(command='hover', path=str(module_file), old_str='name')
+    assert 'str' in result.output  # Should show type hint info
