@@ -50,7 +50,7 @@ def test_run_shell_cmd_truncation(mock_popen):
 def test_check_tool_installed_whoami():
     """Test check_tool_installed returns True for an installed tool (whoami)."""
     # 'python' is usually available if Python is installed
-    assert check_tool_installed('whoami') is True
+    assert check_tool_installed('python3') is True
 
 
 def test_check_tool_installed_nonexistent_tool():

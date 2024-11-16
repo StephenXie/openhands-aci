@@ -13,6 +13,7 @@ class LSPManager:
     def __init__(self, workspace_dir: Optional[Path] = None):
         self._servers: dict[Language, SyncLanguageServer] = {}
         self._active_server: Optional[SyncLanguageServer] = None
+        self._running_servers: set[SyncLanguageServer] = set()
         self._source_dir = workspace_dir or Path.cwd()
         self._logger = MultilspyLogger()
 
@@ -43,6 +44,10 @@ class LSPManager:
             )
         return self._servers[language]
 
+    def is_running(self, server: SyncLanguageServer) -> bool:
+        """Check if a server is currently running"""
+        return server in self._running_servers
+
     @contextmanager
     def get_server_for_file(self, file_path: Path):
         """Get an LSP server instance for the given file"""
@@ -55,6 +60,9 @@ class LSPManager:
         self._active_server = server
         try:
             with server.start_server():
+                self._running_servers.add(server)
                 yield server
         finally:
             self._active_server = None
+            if server in self._running_servers:
+                self._running_servers.remove(server)

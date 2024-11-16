@@ -222,7 +222,26 @@ class OHEditor:
         Write the content of a file to a given path; raise a ToolError if an error occurs.
         """
         try:
-            path.write_text(file_text)
+            path.write_text(
+                file_text
+            )  # FIXME: use the following code instead of this line after adding the `replace_file_content` method to the LSP server
+
+            # # Get the old content for LSP diff if file exists
+            # old_content = path.read_text() if path.exists() else ""
+
+            # # Write the new content
+            # path.write_text(file_text)
+
+            # # Notify LSP server if it's a supported language file
+            # try:
+            #     language = self._lsp_manager._get_language(path)
+            #     server = self._lsp_manager._servers.get(language)
+            #     if server and self._lsp_manager.is_running(server):
+            #         # Send didChange notification to LSP server
+            #         server.replace_file_content(str(path), old_content, file_text)
+            # except ToolError:
+            #     # Not a supported language file, ignore LSP notification
+            #     pass
         except Exception as e:
             raise ToolError(f'Ran into {e} while trying to write to {path}') from None
 
