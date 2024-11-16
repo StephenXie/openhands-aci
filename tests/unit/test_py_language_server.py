@@ -48,12 +48,12 @@ def create_test_context(params: dict) -> Iterator[MultilspyContext]:
 @pytest.mark.asyncio
 async def test_multilspy_request_definition():
     """
-    Test request_definition LSP request in multilspy with python repository - black
+    Test request_definition LSP request in multilspy with python repository - OpenHands
     """
     params = {
         'code_language': Language.PYTHON,
-        'repo_url': 'https://github.com/psf/black/',
-        'repo_commit': 'f3b50e466969f9142393ec32a4b2a383ffbe5f23',
+        'repo_url': 'https://github.com/All-Hands-AI/OpenHands/',
+        'repo_commit': '97f3249205e25abafc13e2c42037dd9b309fbe73',
     }
     with create_test_context(params) as context:
         lsp = LanguageServer.create(
@@ -62,28 +62,30 @@ async def test_multilspy_request_definition():
 
         async with lsp.start_server():
             result = await lsp.request_definition(
-                str(PurePath('src/black/mode.py')), 163, 4
+                str(PurePath('openhands/controller/agent_controller.py')),
+                113,
+                30,  # self.event_stream.subscribe()
             )
 
             assert isinstance(result, list)
             assert len(result) == 1
             item = result[0]
-            assert item['relativePath'] == str(PurePath('src/black/mode.py'))
+            assert item['relativePath'] == str(PurePath('openhands/events/stream.py'))
             assert item['range'] == {
-                'start': {'line': 163, 'character': 4},
-                'end': {'line': 163, 'character': 20},
+                'start': {'line': 151, 'character': 8},
+                'end': {'line': 151, 'character': 17},
             }
 
 
 @pytest.mark.asyncio
 async def test_multilspy_request_references():
     """
-    Test request_references LSP request in multilspy with python repository - black
+    Test request_references LSP request in multilspy with python repository - OpenHands
     """
     params = {
         'code_language': Language.PYTHON,
-        'repo_url': 'https://github.com/psf/black/',
-        'repo_commit': 'f3b50e466969f9142393ec32a4b2a383ffbe5f23',
+        'repo_url': 'https://github.com/All-Hands-AI/OpenHands/',
+        'repo_commit': '97f3249205e25abafc13e2c42037dd9b309fbe73',
     }
     with create_test_context(params) as context:
         lsp = LanguageServer.create(
@@ -92,11 +94,13 @@ async def test_multilspy_request_references():
 
         async with lsp.start_server():
             result = await lsp.request_references(
-                str(PurePath('src/black/mode.py')), 163, 4
+                str(PurePath('openhands/controller/agent_controller.py')),
+                436,
+                16,  # async def _step(self) -> None:
             )
 
             assert isinstance(result, list)
-            assert len(result) == 8
+            assert len(result) == 7
 
             for item in result:
                 del item['uri']
@@ -104,59 +108,66 @@ async def test_multilspy_request_references():
 
             assert result == [
                 {
-                    'relativePath': str(PurePath('src/black/__init__.py')),
+                    'relativePath': str(
+                        PurePath('openhands/controller/agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 71, 'character': 4},
-                        'end': {'line': 71, 'character': 20},
+                        'start': {'line': 201, 'character': 27},
+                        'end': {'line': 201, 'character': 32},
                     },
                 },
                 {
-                    'relativePath': str(PurePath('src/black/__init__.py')),
+                    'relativePath': str(
+                        PurePath('openhands/controller/agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 1105, 'character': 11},
-                        'end': {'line': 1105, 'character': 27},
+                        'start': {'line': 436, 'character': 14},
+                        'end': {'line': 436, 'character': 19},
                     },
                 },
                 {
-                    'relativePath': str(PurePath('src/black/__init__.py')),
+                    'relativePath': str(
+                        PurePath('openhands/controller/agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 1113, 'character': 11},
-                        'end': {'line': 1113, 'character': 27},
+                        'start': {'line': 534, 'character': 28},
+                        'end': {'line': 534, 'character': 33},
                     },
                 },
                 {
-                    'relativePath': str(PurePath('src/black/mode.py')),
+                    'relativePath': str(
+                        PurePath('tests/unit/test_agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 163, 'character': 4},
-                        'end': {'line': 163, 'character': 20},
+                        'start': {'line': 292, 'character': 21},
+                        'end': {'line': 292, 'character': 26},
                     },
                 },
                 {
-                    'relativePath': str(PurePath('src/black/parsing.py')),
+                    'relativePath': str(
+                        PurePath('tests/unit/test_agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 7, 'character': 68},
-                        'end': {'line': 7, 'character': 84},
+                        'start': {'line': 311, 'character': 21},
+                        'end': {'line': 311, 'character': 26},
                     },
                 },
                 {
-                    'relativePath': str(PurePath('src/black/parsing.py')),
+                    'relativePath': str(
+                        PurePath('tests/unit/test_agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 37, 'character': 11},
-                        'end': {'line': 37, 'character': 27},
+                        'start': {'line': 332, 'character': 21},
+                        'end': {'line': 332, 'character': 26},
                     },
                 },
                 {
-                    'relativePath': str(PurePath('src/black/parsing.py')),
+                    'relativePath': str(
+                        PurePath('tests/unit/test_agent_controller.py')
+                    ),
                     'range': {
-                        'start': {'line': 39, 'character': 14},
-                        'end': {'line': 39, 'character': 30},
-                    },
-                },
-                {
-                    'relativePath': str(PurePath('src/black/parsing.py')),
-                    'range': {
-                        'start': {'line': 44, 'character': 11},
-                        'end': {'line': 44, 'character': 27},
+                        'start': {'line': 352, 'character': 21},
+                        'end': {'line': 352, 'character': 26},
                     },
                 },
             ]
