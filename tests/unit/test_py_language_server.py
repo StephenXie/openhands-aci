@@ -392,7 +392,7 @@ async def test_multilspy_request_document_symbols():
                     'name': 'parse_action',
                     'range': {
                         'start': {'character': 4, 'line': 51},
-                        'end': {'character': 22, 'line': 39},
+                        'end': {'character': 12, 'line': 60},
                     },
                     'selectionRange': {
                         'start': {'character': 8, 'line': 51},
