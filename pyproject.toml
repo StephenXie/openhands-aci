@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openhands-aci"
-version = "0.0.1"
+version = "0.1.1"
 description = "An Agent-Computer Interface (ACI) designed for software development agents OpenHands."
 authors = ["OpenHands"]
 license = "MIT"
@@ -20,6 +20,8 @@ gitpython = "*"
 tree-sitter = "0.21.3"
 grep-ast = "0.3.3"
 diskcache = "^5.6.3"
+flake8 = "*"
+whatthepatch = "^1.0.6"
 multilspy = {git = "https://github.com/microsoft/multilspy.git"}
 
 
