@@ -159,6 +159,28 @@ No linting issues found in the changes.
 Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."""
     )
 
+def test_delete_block(editor):
+    editor, test_file = editor
+    test_file.write_text(
+        'This is a test file.\nThis file is for testing purposes.\nfoo\nbar\nbaz'
+    )
+    result = editor(
+        command='delete',
+        path=str(test_file),
+        lines_range=[2, 3],
+    )
+    assert isinstance(result, CLIResult)
+    assert 'foo' not in test_file.read_text()
+    assert 'bar' not in test_file.read_text()
+    print(result.output)
+    assert (
+        result.output
+        == f"""The file {test_file} has been edited. Here's the result of running `cat -n` on a snippet of the edited file:
+     1\tThis is a test file.
+     2\tThis file is for testing purposes.
+     3\tbaz
+Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary.""")
+
 
 def test_move_code_block(editor):
     editor, test_file = editor

@@ -87,12 +87,8 @@ class OHEditor:
                 raise EditorToolParameterMissingError(command, 'new_str')
             return self.insert(_path, insert_line, new_str, enable_linting)
         elif command == 'delete':
-            if not lines_range:
-                raise EditorToolParameterMissingError(command, 'lines_range')
             return self.delete(_path, lines_range)
         elif command == 'move_code_block':
-            if not lines_range:
-                raise EditorToolParameterMissingError(command, 'lines_range')
             if insert_line is None:
                 raise EditorToolParameterMissingError(command, 'insert_line')
             if not dst_path:
@@ -268,19 +264,16 @@ class OHEditor:
         success_message += 'Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary.'
         return CLIResult(output=success_message)
 
-    def delete(self, path: Path, lines_range: list[int]) -> CLIResult:
+    def delete(self, path: Path, lines_range: list[int] | None = None) -> CLIResult:
         """
         Deletes text content in file from the given range.
         """
-        try:
-            file_text = self.read_file(path)
-        except Exception as e:
-            raise ToolError(f'Ran into {e} while trying to read {path}') from None
-
-        file_text = file_text.expandtabs()
-
+        file_text = self.read_file(path).expandtabs()
         file_text_lines = file_text.split('\n')
         num_lines = len(file_text_lines)
+
+        if not lines_range:
+            lines_range = [0, num_lines - 1]  # Delete all lines
 
         self._validate_range(lines_range, num_lines)
 
@@ -312,24 +305,28 @@ class OHEditor:
         return CLIResult(output=success_message)
 
     def move_code_block(
-            self, from_file: Path, from_range: list[int], dst_file: Path, insert_line: int
+            self, path: Path, from_range: list[int] | None, dst_path: Path, insert_line: int
         ) -> CLIResult:
         """
         Move a block of code from one file to another.
         """
-        file_content = self.read_file(from_file)
-        file_content_lines = file_content.split('\n')
+        file_content_lines = self.read_file(path).expandtabs().split('\n')
+        num_lines = len(file_content_lines)
+
+        if not from_range:
+            from_range = [0, num_lines - 1]  # Delete all lines
+
         start_line, end_line = from_range
         code_block = '\n'.join(
             file_content_lines[start_line:]
             if end_line == -1
             else file_content_lines[start_line: end_line + 1]
         )
-        delete_result = self.delete(from_file, from_range)
-        insert_result = self.insert(dst_file, insert_line, code_block, True)
+        delete_result = self.delete(path, from_range)
+        insert_result = self.insert(dst_path, insert_line, code_block, True)
 
         return CLIResult(
-            output=f'Code block moved from {from_file} to {dst_file}.\n{delete_result.output}\n{insert_result.output}'
+            output=f'Code block moved from {path} to {dst_path}.\n{delete_result.output}\n{insert_result.output}'
         )
 
     def validate_path(self, command: Command, path: Path) -> None:
