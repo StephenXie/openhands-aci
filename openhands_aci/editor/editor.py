@@ -280,7 +280,7 @@ class OHEditor:
         start_line, end_line = lines_range  # inclusive
 
         new_file_text_lines = (
-            file_text_lines[:start_line] + file_text_lines[end_line + 1:]
+            file_text_lines[:start_line] + file_text_lines[end_line + 1 :]
         )
         snippet_lines = (
             file_text_lines[max(0, start_line - SNIPPET_CONTEXT_WINDOW) : start_line]
@@ -305,8 +305,8 @@ class OHEditor:
         return CLIResult(output=success_message)
 
     def move_code_block(
-            self, path: Path, from_range: list[int] | None, dst_path: Path, insert_line: int
-        ) -> CLIResult:
+        self, path: Path, from_range: list[int] | None, dst_path: Path, insert_line: int
+    ) -> CLIResult:
         """
         Move a block of code from one file to another.
         """
@@ -320,7 +320,7 @@ class OHEditor:
         code_block = '\n'.join(
             file_content_lines[start_line:]
             if end_line == -1
-            else file_content_lines[start_line: end_line + 1]
+            else file_content_lines[start_line : end_line + 1]
         )
         delete_result = self.delete(path, from_range)
         insert_result = self.insert(dst_path, insert_line, code_block, True)
