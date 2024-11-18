@@ -159,6 +159,7 @@ No linting issues found in the changes.
 Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."""
     )
 
+
 def test_delete_block(editor):
     editor, test_file = editor
     test_file.write_text(
@@ -179,7 +180,8 @@ def test_delete_block(editor):
      1\tThis is a test file.
      2\tThis file is for testing purposes.
      3\tbaz
-Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary.""")
+Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."""
+    )
 
 
 def test_move_code_block(editor):
