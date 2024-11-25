@@ -1,7 +1,7 @@
 from dataclasses import dataclass, fields
 
-from .config import MAX_RESPONSE_LEN_CHAR
-from .prompts import CONTENT_TRUNCATED_NOTICE
+from .editor.config import MAX_RESPONSE_LEN_CHAR
+from .editor.prompts import CONTENT_TRUNCATED_NOTICE
 
 
 @dataclass

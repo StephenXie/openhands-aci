@@ -1,6 +1,7 @@
+from openhands_aci.exceptions import ToolError
+
+from ..results import ToolResult
 from .editor import Command, OHEditor
-from .exceptions import ToolError
-from .results import ToolResult
 
 _GLOBAL_EDITOR = OHEditor()
 

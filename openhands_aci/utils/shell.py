@@ -3,7 +3,7 @@ import subprocess
 import time
 
 from openhands_aci.editor.config import MAX_RESPONSE_LEN_CHAR
-from openhands_aci.editor.results import maybe_truncate
+from openhands_aci.results import maybe_truncate
 
 
 def run_shell_cmd(
