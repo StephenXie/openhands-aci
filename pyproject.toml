@@ -9,6 +9,10 @@ packages = [
   { include = "openhands_aci/**/*" }
 ]
 
+[tool.poetry.scripts]
+oh-editor = "openhands_aci.editor.cli:main"
+oh-nav = "openhands_aci.navigator.cli:main"
+
 [tool.poetry.dependencies]
 python = "^3.12"
 numpy = "*"
