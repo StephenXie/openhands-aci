@@ -1,20 +1,12 @@
 import json
 import uuid
 
+from openhands_aci.core.results import ToolResult, make_api_tool_result
+
 from .editor import Command, OHEditor
 from .exceptions import ToolError
-from .results import ToolResult
 
 _GLOBAL_EDITOR = OHEditor()
-
-
-def _make_api_tool_result(tool_result: ToolResult) -> str:
-    """Convert an agent ToolResult to an API ToolResultBlockParam."""
-    if tool_result.error:
-        return f'ERROR:\n{tool_result.error}'
-
-    assert tool_result.output, 'Expected output in file_editor.'
-    return tool_result.output
 
 
 def file_editor(
@@ -42,7 +34,7 @@ def file_editor(
     except ToolError as e:
         result = ToolResult(error=e.message)
 
-    formatted_output_and_error = _make_api_tool_result(result)
+    formatted_output_and_error = make_api_tool_result(result)
     marker_id = uuid.uuid4().hex
     return f"""<oh_aci_output_{marker_id}>
 {json.dumps(result.to_dict(extra_field={'formatted_output_and_error': formatted_output_and_error}), indent=2)}

@@ -3,6 +3,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Literal, get_args
 
+from openhands_aci.core.results import CLIResult, maybe_truncate
 from openhands_aci.linter import DefaultLinter
 from openhands_aci.utils.shell import run_shell_cmd
 
@@ -12,7 +13,6 @@ from .exceptions import (
     EditorToolParameterMissingError,
     ToolError,
 )
-from .results import CLIResult, maybe_truncate
 
 Command = Literal[
     'view',

@@ -1,12 +1,12 @@
 import pytest
 
+from openhands_aci.core.results import CLIResult, ToolResult
 from openhands_aci.editor.editor import OHEditor
 from openhands_aci.editor.exceptions import (
     EditorToolParameterInvalidError,
     EditorToolParameterMissingError,
     ToolError,
 )
-from openhands_aci.editor.results import CLIResult, ToolResult
 
 
 @pytest.fixture
