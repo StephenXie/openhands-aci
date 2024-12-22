@@ -1,32 +1,36 @@
 import os
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from git import Repo
 from git.exc import InvalidGitRepositoryError
 
 from .core import CodeSearchIndex
 
-def _get_files_from_repo(repo_path: str, extensions: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+
+def _get_files_from_repo(
+    repo_path: str, extensions: Optional[List[str]] = None
+) -> List[Dict[str, Any]]:
     """Get all files from a git repository.
-    
+
     Args:
         repo_path: Path to the git repository
         extensions: List of file extensions to include (e.g. ['.py', '.js'])
                   If None, includes all files
-                  
+
     Returns:
         List of document dictionaries with 'id' and 'content' keys
     """
     try:
-        repo = Repo(repo_path)
+        # Verify it's a git repo
+        _ = Repo(repo_path)
     except InvalidGitRepositoryError:
-        raise ValueError(f"{repo_path} is not a valid git repository")
+        raise ValueError(f'{repo_path} is not a valid git repository')
 
     documents = []
-    repo_path = Path(repo_path)
+    repo_path_obj = Path(repo_path)
 
-    for root, _, files in os.walk(repo_path):
+    for root, _, files in os.walk(repo_path_obj):
         if '.git' in root:
             continue
 
@@ -41,29 +45,30 @@ def _get_files_from_repo(repo_path: str, extensions: Optional[List[str]] = None)
             except (UnicodeDecodeError, IOError):
                 continue
 
-            rel_path = file_path.relative_to(repo_path)
-            documents.append({
-                'id': str(rel_path),
-                'content': content,
-                'path': str(rel_path)
-            })
+            rel_path = file_path.relative_to(repo_path_obj)
+            documents.append(
+                {'id': str(rel_path), 'content': content, 'path': str(rel_path)}
+            )
 
     return documents
 
-def initialize_code_search(repo_path: str, 
-                         save_dir: str,
-                         extensions: Optional[List[str]] = None,
-                         embedding_model: Optional[str] = None,
-                         batch_size: int = 32) -> Dict[str, Any]:
+
+def initialize_code_search(
+    repo_path: str,
+    save_dir: str,
+    extensions: Optional[List[str]] = None,
+    embedding_model: Optional[str] = None,
+    batch_size: int = 32,
+) -> Dict[str, Any]:
     """Initialize code search for a repository.
-    
+
     Args:
         repo_path: Path to the git repository
         save_dir: Directory to save the search index
         extensions: List of file extensions to include
         embedding_model: Name or path of the embedding model to use
         batch_size: Batch size for embedding generation
-        
+
     Returns:
         Dictionary with status and message
     """
@@ -73,7 +78,7 @@ def initialize_code_search(repo_path: str,
         if not documents:
             return {
                 'status': 'error',
-                'message': f'No files found in repository {repo_path}'
+                'message': f'No files found in repository {repo_path}',
             }
 
         # Create and save index
@@ -84,42 +89,35 @@ def initialize_code_search(repo_path: str,
         return {
             'status': 'success',
             'message': f'Successfully indexed {len(documents)} files from {repo_path}',
-            'num_documents': len(documents)
+            'num_documents': len(documents),
         }
 
     except Exception as e:
         return {
             'status': 'error',
-            'message': f'Error initializing code search: {str(e)}'
+            'message': f'Error initializing code search: {str(e)}',
         }
 
-def search_code(save_dir: str,
-                query: str,
-                k: int = 5) -> Dict[str, Any]:
+
+def search_code(save_dir: str, query: str, k: int = 5) -> Dict[str, Any]:
     """Search code in an indexed repository.
-    
+
     Args:
         save_dir: Directory containing the search index
         query: Search query
         k: Number of results to return
-        
+
     Returns:
         Dictionary with status and search results
     """
     try:
         # Load index
         index = CodeSearchIndex.load(save_dir)
-        
+
         # Search
         results = index.search(query, k=k)
-        
-        return {
-            'status': 'success',
-            'results': results
-        }
+
+        return {'status': 'success', 'results': results}
 
     except Exception as e:
-        return {
-            'status': 'error',
-            'message': f'Error searching code: {str(e)}'
-        }
+        return {'status': 'error', 'message': f'Error searching code: {str(e)}'}
