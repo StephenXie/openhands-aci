@@ -1,10 +1,10 @@
 import json
 import uuid
 
+from openhands_aci.core.exceptions import ToolError
 from openhands_aci.core.results import ToolResult, make_api_tool_result
 
 from .editor import Command, OHEditor
-from .exceptions import ToolError
 
 _GLOBAL_EDITOR = OHEditor()
 

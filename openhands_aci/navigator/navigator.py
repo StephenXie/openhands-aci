@@ -1,16 +1,32 @@
 import os
 from collections import defaultdict
+from typing import Literal, get_args
 
 from grep_ast import TreeContext
 from rapidfuzz import process
 from tqdm import tqdm
 
+from openhands_aci.core.exceptions import ToolError, ToolParameterInvalidError
+from openhands_aci.core.results import CLIResult
 from openhands_aci.tree_sitter.parser import ParsedTag, TagKind, TreeSitterParser
 from openhands_aci.utils.file import GitRepoUtils, get_modified_time, read_text
 from openhands_aci.utils.path import PathUtils
 
+Command = Literal[
+    'jump_to_definition',
+    'find_references',
+]
+
 
 class SymbolNavigator:
+    """
+    A symbol navigator that allows the agent to:
+    - jump to the definition of a symbol
+    - find references to a symbol
+    """
+
+    TOOL_NAME = 'oh_navigator'
+
     def __init__(self, show_progress=False) -> None:
         self.show_progress = show_progress
 
@@ -21,8 +37,8 @@ class SymbolNavigator:
         self._git_repo_found: bool | None = None
 
         # Caching
-        self.file_context_cache: dict = {}  # (rel_file) -> {'context': TreeContext_obj, 'mtime': mtime})
-        self.rendered_tree_cache: dict = {}  # (rel_file, lines_of_interest, mtime) -> rendered_tree
+        self._file_context_cache: dict = {}  # (rel_file) -> {'context': TreeContext_obj, 'mtime': mtime})
+        self._rendered_tree_cache: dict = {}  # (rel_file, lines_of_interest, mtime) -> rendered_tree
 
     @property
     def git_utils(self):
@@ -62,6 +78,21 @@ class SymbolNavigator:
         if self._git_repo_found is None:
             self.git_utils  # Initialize the git_utils
         return bool(self._git_repo_found)
+
+    def __call__(self, *, command: Command, symbol_name: str, **kwargs) -> CLIResult:
+        if not symbol_name:
+            raise ToolParameterInvalidError(
+                'symbol_name', symbol_name, 'Symbol name cannot be empty.'
+            )
+
+        if command == 'jump_to_definition':
+            return CLIResult(output=self.get_definitions_tree(symbol_name))
+        elif command == 'find_references':
+            return CLIResult(output=self.get_references_tree(symbol_name))
+
+        raise ToolError(
+            f'Unrecognized command {command}. The allowed commands for the {self.TOOL_NAME} tool are: {", ".join(get_args(Command))}'
+        )
 
     def get_definitions_tree(
         self, symbol: str, rel_file_path: str | None = None, use_end_line=True
@@ -230,12 +261,12 @@ class SymbolNavigator:
     ) -> str:
         mtime = get_modified_time(abs_file)
         tree_cache_key = (rel_file, tuple(sorted(lines_of_interest)), mtime)
-        if tree_cache_key in self.rendered_tree_cache:
-            return self.rendered_tree_cache[tree_cache_key]
+        if tree_cache_key in self._rendered_tree_cache:
+            return self._rendered_tree_cache[tree_cache_key]
 
         if (
-            rel_file not in self.file_context_cache
-            or self.file_context_cache[rel_file]['mtime'] < mtime
+            rel_file not in self._file_context_cache
+            or self._file_context_cache[rel_file]['mtime'] < mtime
         ):
             code = read_text(abs_file) or ''
             if not code.endswith('\n'):
@@ -254,13 +285,13 @@ class SymbolNavigator:
                 # header_max=30,
                 show_top_of_file_parent_scope=False,
             )
-            self.file_context_cache[rel_file] = {'context': context, 'mtime': mtime}
+            self._file_context_cache[rel_file] = {'context': context, 'mtime': mtime}
         else:
-            context = self.file_context_cache[rel_file]['context']
+            context = self._file_context_cache[rel_file]['context']
 
         context.lines_of_interest = set()
         context.add_lines_of_interest(lines_of_interest)
         context.add_context()
         res = context.format()
-        self.rendered_tree_cache[tree_cache_key] = res
+        self._rendered_tree_cache[tree_cache_key] = res
         return res
