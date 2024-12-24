@@ -13,7 +13,6 @@ from openhands_aci.linter import DefaultLinter
 from openhands_aci.utils.shell import run_shell_cmd
 
 from .config import SNIPPET_CONTEXT_WINDOW
-from .prompts import NAVIGATION_TIPS
 
 Command = Literal[
     'view',
@@ -188,8 +187,7 @@ class OHEditor:
         start_line = 1
         if not view_range:
             return CLIResult(
-                output=self._make_output(file_content, str(path), start_line)
-                + NAVIGATION_TIPS,
+                output=self._make_output(file_content, str(path), start_line),
                 path=str(path),
                 prev_exist=True,
             )
@@ -231,8 +229,7 @@ class OHEditor:
             file_content = '\n'.join(file_content_lines[start_line - 1 : end_line])
         return CLIResult(
             path=str(path),
-            output=self._make_output(file_content, str(path), start_line)
-            + NAVIGATION_TIPS,
+            output=self._make_output(file_content, str(path), start_line),
             prev_exist=True,
         )
 
