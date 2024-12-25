@@ -59,7 +59,7 @@ class OHEditor:
         if command == 'view':
             return self.view(_path, view_range)
         elif command == 'create':
-            if not file_text:
+            if file_text is None:
                 raise MultiCommandToolParameterMissingError(command, 'file_text')
             self.write_file(_path, file_text)
             self._file_history[_path].append(file_text)
@@ -70,7 +70,7 @@ class OHEditor:
                 output=f'File created successfully at: {_path}',
             )
         elif command == 'str_replace':
-            if not old_str:
+            if old_str is None:
                 raise MultiCommandToolParameterMissingError(command, 'old_str')
             if new_str == old_str:
                 raise ToolParameterInvalidError(
@@ -82,7 +82,7 @@ class OHEditor:
         elif command == 'insert':
             if insert_line is None:
                 raise MultiCommandToolParameterMissingError(command, 'insert_line')
-            if not new_str:
+            if new_str is None:
                 raise MultiCommandToolParameterMissingError(command, 'new_str')
             return self.insert(_path, insert_line, new_str, enable_linting)
         elif command == 'undo_edit':
