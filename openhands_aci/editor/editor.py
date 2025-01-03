@@ -10,6 +10,7 @@ from openhands_aci.core.exceptions import (
 )
 from openhands_aci.core.results import CLIResult, maybe_truncate
 from openhands_aci.linter import DefaultLinter
+from openhands_aci.navigator import GLOBAL_NAVIGATOR as _symbol_navigator
 from openhands_aci.utils.shell import run_shell_cmd
 
 from .config import SNIPPET_CONTEXT_WINDOW
@@ -175,7 +176,22 @@ class OHEditor:
                 rf"find -L {path} -maxdepth 2 -not -path '*/\.*'"
             )
             if not stderr:
-                stdout = f"Here's the files and directories up to 2 levels deep in {path}, excluding hidden items:\n{stdout}\n"
+                if _symbol_navigator.is_enabled:
+                    path_depth = len(path.parts)
+                    all_abs_paths_list = stdout.split('\n')
+                    abs_path_to_skeleton = _symbol_navigator.get_skeletons(
+                        all_abs_paths_list,
+                        path_depth,
+                    )
+                    stdout = '\n'.join(
+                        [
+                            f'{abs_path}{'\n' + abs_path_to_skeleton[abs_path] if abs_path in abs_path_to_skeleton else ''}'
+                            for abs_path in all_abs_paths_list
+                        ]
+                    )
+                    stdout = f"Here's the files with its skeleton (i.e., class, function/method signatures) and directories up to 2 levels deep in {path}, excluding hidden items:\n{stdout}\n"
+                else:
+                    stdout = f"Here's the files and directories up to 2 levels deep in {path}, excluding hidden items:\n{stdout}\n"
             return CLIResult(
                 output=stdout,
                 error=stderr,
