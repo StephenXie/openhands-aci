@@ -204,6 +204,11 @@ class OHEditor:
         if not view_range:
             return CLIResult(
                 output=self._make_output(file_content, str(path), start_line),
+                # + (
+                #     _symbol_navigator.get_out_and_in_edges_suggestion(str(path))
+                #     if _symbol_navigator.is_enabled
+                #     else ''
+                # ),
                 path=str(path),
                 prev_exist=True,
             )
@@ -246,6 +251,11 @@ class OHEditor:
         return CLIResult(
             path=str(path),
             output=self._make_output(file_content, str(path), start_line),
+            # + (
+            #     _symbol_navigator.get_out_and_in_edges_suggestion(str(path))
+            #     if _symbol_navigator.is_enabled
+            #     else ''
+            # ),
             prev_exist=True,
         )
 

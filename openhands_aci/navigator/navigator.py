@@ -1,7 +1,8 @@
 import os
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Literal, get_args
 
+import networkx as nx
 from grep_ast import TreeContext
 from rapidfuzz import process
 from tqdm import tqdm
@@ -218,6 +219,76 @@ class SymbolNavigator:
             )
 
         return abs_path_to_tree_repr
+
+    def get_out_and_in_edges_suggestion(self, abs_file_path: str) -> str:
+        rel_file_path = self.path_utils.get_relative_path_str(abs_file_path)
+        conn_graph = self._get_connections_network()
+
+        # Out-edges with identifiers
+        out_edges = [
+            (target, data['identifier'])
+            for _, target, data in conn_graph.out_edges(rel_file_path, data=True)
+        ]
+
+        # In-edges with identifiers
+        in_edges = [
+            (source, data['identifier'])
+            for source, _, data in conn_graph.in_edges(rel_file_path, data=True)
+        ]
+
+        out_files_w_idents, in_files_w_idents = (
+            list(set(out_edges)),
+            list(set(in_edges)),
+        )
+
+        # Reduce items that have the same file name
+        def group_files_with_idents(files_with_idents):
+            grouped = defaultdict(set)
+            for file, ident in files_with_idents:
+                grouped[file].add(ident)
+            return [(file, ', '.join(idents)) for file, idents in grouped.items()]
+
+        out_files_w_idents = group_files_with_idents(out_files_w_idents)
+        in_files_w_idents = group_files_with_idents(in_files_w_idents)
+
+        if len(out_files_w_idents) > 0:
+            suggestion_out = '\nFiles Used By This File:\n'
+            for file, ident in out_files_w_idents:
+                if file == rel_file_path:
+                    continue
+                suggestion_out += f'- {file} (via {ident})\n'
+        else:
+            suggestion_out = ''
+
+        if len(in_files_w_idents) > 0:
+            suggestion_in = '\nFiles Referencing This File:\n'
+            for file, ident in in_files_w_idents:
+                if file == rel_file_path:
+                    continue
+                suggestion_in += f'- {file} (via {ident})\n'
+        else:
+            suggestion_in = ''
+
+        return suggestion_out + suggestion_in
+
+    def _get_connections_network(self) -> nx.MultiDiGraph:
+        ident2defrels, ident2refrels, _, _ = self._get_parsed_tags()
+
+        all_idents = set(ident2defrels.keys()).intersection(set(ident2refrels.keys()))
+
+        G = nx.MultiDiGraph()
+        for ident in all_idents:
+            defining_rel_files = ident2defrels[ident]
+
+            for referencing_rel_file, num_refs in Counter(ident2refrels[ident]).items():
+                for defining_rel_file in defining_rel_files:
+                    G.add_edge(
+                        referencing_rel_file,
+                        defining_rel_file,
+                        weight=num_refs,
+                        identifier=f'`{ident}`',
+                    )
+        return G
 
     def _get_parsed_tags(
         self,
