@@ -185,7 +185,7 @@ class OHEditor:
                     )
                     stdout = '\n'.join(
                         [
-                            f'{abs_path}{'\n' + abs_path_to_skeleton[abs_path] if abs_path in abs_path_to_skeleton else ''}'
+                            f'{abs_path}{abs_path_to_skeleton[abs_path] if abs_path in abs_path_to_skeleton else ''}'
                             for abs_path in all_abs_paths_list
                         ]
                     )
