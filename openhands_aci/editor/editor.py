@@ -3,6 +3,14 @@ import tempfile
 from pathlib import Path
 from typing import Literal, Optional, get_args
 
+from .file_ops import (
+    FileError,
+    FileTooLargeError,
+    InvalidFileTypeError,
+    read_file_range,
+    replace_in_file,
+)
+
 from openhands_aci.linter import DefaultLinter
 from openhands_aci.utils.shell import run_shell_cmd
 
@@ -105,53 +113,24 @@ class OHEditor:
         old_str = old_str.expandtabs()
         new_str = new_str.expandtabs() if new_str is not None else ''
 
-        # Read the entire file first to handle both single-line and multi-line replacements
-        file_content = self.read_file(path).expandtabs()
-
-        # Find all occurrences
-        occurrences = []
-        start_idx = 0
-        while True:
-            idx = file_content.find(old_str, start_idx)
-            if idx == -1:
-                break
-            # Count newlines before this occurrence to get the line number
-            line_num = file_content.count('\n', 0, idx) + 1
-            # Store the actual matched text to preserve line endings
-            matched_text = file_content[idx : idx + len(old_str)]
-            occurrences.append((line_num, matched_text, idx))
-            start_idx = idx + len(old_str)
-
-        if not occurrences:
-            raise ToolError(
-                f'No replacement was performed, old_str `{old_str}` did not appear verbatim in {path}.'
-            )
-        if len(occurrences) > 1:
-            line_numbers = [line for line, _, _ in occurrences]
-            raise ToolError(
-                f'No replacement was performed. Multiple occurrences of old_str `{old_str}` in lines {line_numbers}. Please ensure it is unique.'
-            )
-
-        # We found exactly one occurrence
-        replacement_line, matched_text, idx = occurrences[0]
-
-        # Create new content by replacing just the matched text
-        new_file_content = (
-            file_content[:idx] + new_str + file_content[idx + len(matched_text) :]
-        )
-
-        # Write the new content to the file
-        self.write_file(path, new_file_content)
-
-        # Save the content to history
-        self._history_manager.add_history(path, file_content)
-
-        # Create a snippet of the edited section
-        start_line = max(0, replacement_line - SNIPPET_CONTEXT_WINDOW)
-        end_line = replacement_line + SNIPPET_CONTEXT_WINDOW + new_str.count('\n')
-
-        # Read just the snippet range
-        snippet = self.read_file(path, start_line=start_line, end_line=end_line)
+        try:
+            # Use the efficient replace_in_file function
+            replacement_line, matched_text = replace_in_file(path, old_str, new_str)
+            
+            # Save the content to history
+            self._history_manager.add_history(path, self.read_file(path))
+            
+            # Create a snippet of the edited section
+            start_line = max(0, replacement_line - SNIPPET_CONTEXT_WINDOW)
+            end_line = replacement_line + SNIPPET_CONTEXT_WINDOW + new_str.count('\n')
+            
+            # Read just the snippet range
+            snippet = self.read_file(path, start_line=start_line, end_line=end_line)
+            
+        except FileError as e:
+            raise ToolError(str(e)) from None
+        except ValueError as e:
+            raise ToolError(str(e)) from None
 
         # Prepare the success message
         success_message = f'The file {path} has been edited. '
@@ -431,24 +410,9 @@ class OHEditor:
             end_line: Optional end line number (1-based). Must be provided with start_line.
         """
         try:
-            if start_line is not None and end_line is not None:
-                # Read only the specified line range
-                lines = []
-                with open(path, 'r') as f:
-                    for i, line in enumerate(f, 1):
-                        if i > end_line:
-                            break
-                        if i >= start_line:
-                            lines.append(line)
-                return ''.join(lines)
-            elif start_line is not None or end_line is not None:
-                raise ValueError(
-                    'Both start_line and end_line must be provided together'
-                )
-            else:
-                # Use line-by-line reading to avoid loading entire file into memory
-                with open(path, 'r') as f:
-                    return ''.join(f)
+            return read_file_range(path, start_line, end_line)
+        except FileError as e:
+            raise ToolError(str(e)) from None
         except Exception as e:
             raise ToolError(f'Ran into {e} while trying to read {path}') from None
 
