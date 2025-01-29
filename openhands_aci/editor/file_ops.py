@@ -149,7 +149,7 @@ def read_file_range(path: Path, start_line: Optional[int] = None, end_line: Opti
     
     return ''.join(lines)
 
-def replace_in_file(path: Path, old_str: str, new_str: str) -> Optional[Tuple[int, str]]:
+def replace_in_file(path: Path, old_str: str, new_str: str) -> Tuple[int, str]:
     """Replace a string in a file efficiently.
     
     This function uses a temporary file to avoid loading the entire file into memory.
@@ -161,17 +161,16 @@ def replace_in_file(path: Path, old_str: str, new_str: str) -> Optional[Tuple[in
         
     Returns:
         Tuple of (line number where replacement occurred, matched text that was replaced)
-        or None if old_str not found
         
     Raises:
         FileTooLargeError: If file size exceeds MAX_FILE_SIZE
         InvalidFileTypeError: If file is not a text file
-        ValueError: If old_str found multiple times
+        ValueError: If old_str not found or found multiple times
     """
     # First find the string to replace
     result = find_in_file(path, old_str)
     if not result:
-        return None
+        raise ValueError(f"String not found in {path}")
     
     line_num, matched_text = result
     

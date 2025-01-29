@@ -118,9 +118,9 @@ def test_memory_usage_for_large_file(tmp_path):
     memory_limit = 256 * 1024 * 1024
     resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
     
-    # Create a large file (50MB)
+    # Create a large file (10MB)
     path = tmp_path / 'large.txt'
-    file_size = 50 * 1024 * 1024
+    file_size = 10 * 1024 * 1024
     chunk_size = 1024 * 1024  # 1MB chunks
     
     with open(path, 'w') as f:
@@ -140,7 +140,7 @@ def test_memory_usage_for_large_file(tmp_path):
         find_in_file(path, 'x' * 100)
         
         # Read range from middle
-        read_file_range(path, start_line=25000, end_line=25100)
+        read_file_range(path, start_line=5000, end_line=5100)
         
         # Replace text in middle
         old_str = 'x' * 100

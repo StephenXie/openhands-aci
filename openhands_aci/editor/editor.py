@@ -115,13 +115,7 @@ class OHEditor:
 
         try:
             # Use the efficient replace_in_file function
-            result = replace_in_file(path, old_str, new_str)
-            if result is None:
-                raise ToolError(
-                    f'No replacement was performed, old_str `{old_str}` did not appear verbatim in {path}.'
-                )
-            
-            replacement_line, matched_text = result
+            replacement_line, matched_text = replace_in_file(path, old_str, new_str)
             
             # Save the content to history
             file_content = self.read_file(path)
@@ -133,17 +127,18 @@ class OHEditor:
             
             # Read just the snippet range
             snippet = self.read_file(path, start_line=start_line, end_line=end_line)
-            
-        except FileError as e:
-            raise ToolError(str(e)) from None
         except ValueError as e:
-            # Convert the error message to match the original format
-            msg = str(e)
-            if 'Multiple occurrences found in lines' in msg:
-                line_numbers = msg[msg.find('['):msg.find(']')+1]
+            if "String not found" in str(e):
+                raise ToolError(
+                    f'No replacement was performed, old_str `{old_str}` did not appear verbatim in {path}.'
+                ) from None
+            if "Multiple occurrences found in lines" in str(e):
+                line_numbers = str(e)[str(e).find('['):str(e).find(']')+1]
                 raise ToolError(
                     f'No replacement was performed. Multiple occurrences of old_str `{old_str}` in lines {line_numbers}. Please ensure it is unique.'
                 ) from None
+            raise
+        except FileError as e:
             raise ToolError(str(e)) from None
 
         # Prepare the success message
