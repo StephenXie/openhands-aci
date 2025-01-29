@@ -3,14 +3,6 @@ import tempfile
 from pathlib import Path
 from typing import Literal, Optional, get_args
 
-from .file_ops import (
-    FileError,
-    FileTooLargeError,
-    InvalidFileTypeError,
-    read_file_range,
-    replace_in_file,
-)
-
 from openhands_aci.linter import DefaultLinter
 from openhands_aci.utils.shell import run_shell_cmd
 
@@ -20,9 +12,17 @@ from .exceptions import (
     EditorToolParameterMissingError,
     ToolError,
 )
+from .file_ops import (
+    FileError,
+    FileTooLargeError,
+    InvalidFileTypeError,
+    read_file_range,
+    replace_in_file,
+)
 from .history import FileHistoryManager
 from .prompts import DIRECTORY_CONTENT_TRUNCATED_NOTICE, FILE_CONTENT_TRUNCATED_NOTICE
 from .results import CLIResult, maybe_truncate
+
 
 Command = Literal[
     'view',
@@ -115,10 +115,17 @@ class OHEditor:
 
         try:
             # Use the efficient replace_in_file function
-            replacement_line, matched_text = replace_in_file(path, old_str, new_str)
+            result = replace_in_file(path, old_str, new_str)
+            if result is None:
+                raise ToolError(
+                    f'No replacement was performed, old_str `{old_str}` did not appear verbatim in {path}.'
+                )
+            
+            replacement_line, matched_text = result
             
             # Save the content to history
-            self._history_manager.add_history(path, self.read_file(path))
+            file_content = self.read_file(path)
+            self._history_manager.add_history(path, file_content)
             
             # Create a snippet of the edited section
             start_line = max(0, replacement_line - SNIPPET_CONTEXT_WINDOW)
@@ -130,6 +137,13 @@ class OHEditor:
         except FileError as e:
             raise ToolError(str(e)) from None
         except ValueError as e:
+            # Convert the error message to match the original format
+            msg = str(e)
+            if 'Multiple occurrences found in lines' in msg:
+                line_numbers = msg[msg.find('['):msg.find(']')+1]
+                raise ToolError(
+                    f'No replacement was performed. Multiple occurrences of old_str `{old_str}` in lines {line_numbers}. Please ensure it is unique.'
+                ) from None
             raise ToolError(str(e)) from None
 
         # Prepare the success message
@@ -140,7 +154,7 @@ class OHEditor:
 
         if enable_linting:
             # Run linting on the changes
-            lint_results = self._run_linting(file_content, new_file_content, path)
+            lint_results = self._run_linting(file_content, self.read_file(path), path)
             success_message += '\n' + lint_results + '\n'
 
         success_message += 'Review the changes and make sure they are as expected. Edit the file again if necessary.'
@@ -149,7 +163,7 @@ class OHEditor:
             prev_exist=True,
             path=str(path),
             old_content=file_content,
-            new_content=new_file_content,
+            new_content=self.read_file(path),
         )
 
     def view(self, path: Path, view_range: list[int] | None = None) -> CLIResult:
@@ -419,55 +433,16 @@ class OHEditor:
     def _make_output(
         self,
         snippet_content: str,
-        snippet_description: str,
+        description: str,
         start_line: int = 1,
-        expand_tabs: bool = True,
     ) -> str:
         """
-        Generate output for the CLI based on the content of a code snippet.
+        Format the output of a command with line numbers and a description.
         """
-        snippet_content = maybe_truncate(
-            snippet_content, truncate_notice=FILE_CONTENT_TRUNCATED_NOTICE
-        )
-        if expand_tabs:
-            snippet_content = snippet_content.expandtabs()
-
-        snippet_content = '\n'.join(
-            [
-                f'{i + start_line:6}\t{line}'
-                for i, line in enumerate(snippet_content.split('\n'))
-            ]
-        )
-        return (
-            f"Here's the result of running `cat -n` on {snippet_description}:\n"
-            + snippet_content
-            + '\n'
-        )
+        return f"Here's the result of running `cat -n` on {description}:\n{maybe_truncate(snippet_content, start_line, FILE_CONTENT_TRUNCATED_NOTICE)}"
 
     def _run_linting(self, old_content: str, new_content: str, path: Path) -> str:
         """
-        Run linting on file changes and return formatted results.
+        Run linting on the changes.
         """
-        # Create a temporary directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create paths with exact filenames in temp directory
-            temp_old = Path(temp_dir) / f'old.{path.name}'
-            temp_new = Path(temp_dir) / f'new.{path.name}'
-
-            # Write content to temporary files
-            temp_old.write_text(old_content)
-            temp_new.write_text(new_content)
-
-            # Run linting on the changes
-            results = self._linter.lint_file_diff(str(temp_old), str(temp_new))
-
-            if not results:
-                return 'No linting issues found in the changes.'
-
-            # Format results
-            output = ['Linting issues found in the changes:']
-            for result in results:
-                output.append(
-                    f'- Line {result.line}, Column {result.column}: {result.message}'
-                )
-            return '\n'.join(output) + '\n'
+        return self._linter.lint_changes(old_content, new_content, path)

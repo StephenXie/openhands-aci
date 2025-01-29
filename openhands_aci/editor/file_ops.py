@@ -63,29 +63,46 @@ def find_in_file(path: Path, search_str: str) -> Optional[Tuple[int, str]]:
     Raises:
         FileTooLargeError: If file size exceeds MAX_FILE_SIZE
         InvalidFileTypeError: If file is not a text file
+        ValueError: If search_str appears multiple times
     """
     validate_text_file(path)
     
+    occurrences = []
     with open(path, 'rb') as f:
         # Memory map the file
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-            # Find the string
-            pos = mm.find(search_str.encode())
-            if pos == -1:
-                return None
-            
-            # Count newlines up to the match position to get line number
-            line_num = mm.read(pos).count(b'\n') + 1
-            
-            # Extract the matched text with its line ending
-            mm.seek(pos)
-            matched = mm.read(len(search_str))
-            
-            # Include the line ending in the match if present
-            if mm.read(1) == b'\n':
-                matched += b'\n'
-            
-            return line_num, matched.decode()
+            # Find all occurrences
+            start_pos = 0
+            while True:
+                pos = mm.find(search_str.encode(), start_pos)
+                if pos == -1:
+                    break
+                
+                # Count newlines up to the match position to get line number
+                mm.seek(0)
+                line_num = mm.read(pos).count(b'\n') + 1
+                
+                # Extract the matched text with its line ending
+                mm.seek(pos)
+                matched = mm.read(len(search_str))
+                
+                # Include the line ending in the match if present
+                if mm.read(1) == b'\n':
+                    matched += b'\n'
+                
+                occurrences.append((line_num, matched.decode()))
+                start_pos = pos + 1
+    
+    if not occurrences:
+        return None
+    
+    if len(occurrences) > 1:
+        line_numbers = [line for line, _ in occurrences]
+        raise ValueError(
+            f'Multiple occurrences found in lines {line_numbers}. Please ensure it is unique.'
+        )
+    
+    return occurrences[0]
 
 def read_file_range(path: Path, start_line: Optional[int] = None, end_line: Optional[int] = None) -> str:
     """Read a range of lines from a file efficiently.
@@ -132,7 +149,7 @@ def read_file_range(path: Path, start_line: Optional[int] = None, end_line: Opti
     
     return ''.join(lines)
 
-def replace_in_file(path: Path, old_str: str, new_str: str) -> Tuple[int, str]:
+def replace_in_file(path: Path, old_str: str, new_str: str) -> Optional[Tuple[int, str]]:
     """Replace a string in a file efficiently.
     
     This function uses a temporary file to avoid loading the entire file into memory.
@@ -144,16 +161,17 @@ def replace_in_file(path: Path, old_str: str, new_str: str) -> Tuple[int, str]:
         
     Returns:
         Tuple of (line number where replacement occurred, matched text that was replaced)
+        or None if old_str not found
         
     Raises:
         FileTooLargeError: If file size exceeds MAX_FILE_SIZE
         InvalidFileTypeError: If file is not a text file
-        ValueError: If old_str not found or found multiple times
+        ValueError: If old_str found multiple times
     """
     # First find the string to replace
     result = find_in_file(path, old_str)
     if not result:
-        raise ValueError(f"String not found in {path}")
+        return None
     
     line_num, matched_text = result
     
