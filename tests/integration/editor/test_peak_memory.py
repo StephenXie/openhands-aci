@@ -51,14 +51,14 @@ def set_memory_limit(file_size: int, multiplier: float = 1.5):
         # Only set limit if it's higher than current usage
         current_usage = psutil.Process().memory_info().rss
         print(f'memory_limit: {memory_limit}, hard: {hard}')
-        if memory_limit > current_usage and hard > memory_limit:
+        if memory_limit > current_usage:
             resource.setrlimit(
-                resource.RLIMIT_AS, (memory_limit, memory_limit)
+                resource.RLIMIT_AS, (memory_limit, hard)
             )  # Set both to same value to avoid soft limit auto increase
             print(f'Memory limit set to {memory_limit / 1024 / 1024:.2f} MB')
         else:
             print(
-                f'Warning: Current memory usage ({current_usage / 1024 / 1024:.2f} MB) higher than limit ({memory_limit / 1024 / 1024:.2f} MB) or hard limit ({hard / 1024 / 1024:.2f} MB)'
+                f'Warning: Current memory usage ({current_usage / 1024 / 1024:.2f} MB) higher than limit ({memory_limit / 1024 / 1024:.2f} MB)'
             )
     except Exception as e:
         print(f'Warning: Could not set memory limit: {str(e)}')
