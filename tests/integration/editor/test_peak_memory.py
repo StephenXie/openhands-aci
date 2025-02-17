@@ -43,7 +43,8 @@ def create_test_file(path: Path, size_mb: float = 5.0):
 
 def set_memory_limit(file_size: int, multiplier: float = 1.5):
     """Set memory limit to multiplier * file_size."""
-    base_memory = 100 * 1024 * 1024  # 100MB
+    process = psutil.Process()
+    base_memory = process.memory_info().rss + 50 * 1024 * 1024  # 50MB overhead
     memory_limit = int(file_size * multiplier + base_memory)
     try:
         # Get current limits
