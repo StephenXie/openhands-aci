@@ -7,7 +7,6 @@ from pathlib import Path
 
 import psutil
 import pytest
-from memory_profiler import profile
 
 from openhands_aci.editor import file_editor
 
@@ -53,9 +52,7 @@ def set_memory_limit(file_size: int, multiplier: float = 1.5):
         current_usage = psutil.Process().memory_info().rss
         print(f'memory_limit: {memory_limit}, hard: {hard}')
         if memory_limit > current_usage:
-            resource.setrlimit(
-                resource.RLIMIT_AS, (memory_limit, hard)
-            )  # Set both to same value to avoid soft limit auto increase
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, hard))
             print(f'Memory limit set to {memory_limit / 1024 / 1024:.2f} MB')
         else:
             print(
@@ -119,7 +116,6 @@ def test_str_replace_peak_memory():
         check_memory_usage(initial['max'], file_size, 'str_replace')
 
 
-@profile
 def test_insert_peak_memory():
     """Test that insert operation has reasonable peak memory usage."""
     with tempfile.NamedTemporaryFile() as temp_file:
