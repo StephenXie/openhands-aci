@@ -46,13 +46,12 @@ def set_memory_limit(file_size: int, multiplier: float = 1.5):
     base_memory = 100 * 1024 * 1024  # 100MB
     memory_limit = int(file_size * multiplier + base_memory)
     try:
-        # Get current limits
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
         # Only set limit if it's higher than current usage
         current_usage = psutil.Process().memory_info().rss
-        print(f'memory_limit: {memory_limit}, hard: {hard}')
         if memory_limit > current_usage:
-            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, hard))
+            resource.setrlimit(
+                resource.RLIMIT_AS, (memory_limit, resource.RLIM_INFINITY)
+            )
             print(f'Memory limit set to {memory_limit / 1024 / 1024:.2f} MB')
         else:
             print(
