@@ -43,8 +43,8 @@ def test_workspace_root_as_cwd(tmp_path):
     assert 'Maybe you meant' not in error_message
 
 
-def test_default_cwd_when_no_workspace_root(tmp_path, monkeypatch):
-    """Test that the current working directory is used when workspace_root is not provided."""
+def test_no_suggestion_when_no_workspace_root(tmp_path, monkeypatch):
+    """Test that no path suggestion is made when workspace_root is not provided."""
     # Create a temporary file in the current directory
     current_dir = tmp_path / 'current_dir'
     current_dir.mkdir()
@@ -57,22 +57,16 @@ def test_default_cwd_when_no_workspace_root(tmp_path, monkeypatch):
     # Initialize editor without workspace_root
     editor = OHEditor()
 
-    # Test that a relative path suggestion uses the current working directory
-    # and suggests the existing file
+    # Test that no path suggestion is made, even for existing files
     relative_path = 'test.txt'
     with pytest.raises(EditorToolParameterInvalidError) as exc_info:
         editor(command='view', path=relative_path)
 
     error_message = str(exc_info.value.message)
     assert 'The path should be an absolute path' in error_message
-    assert 'Maybe you meant' in error_message
+    assert 'Maybe you meant' not in error_message
 
-    # Extract the suggested path from the error message
-    suggested_path = error_message.split('Maybe you meant ')[1].strip('?')
-    assert Path(suggested_path).is_absolute()
-    assert str(current_dir) in suggested_path
-
-    # Test with a non-existent file
+    # Test with a non-existent file (should also have no suggestion)
     non_existent_path = 'non_existent.txt'
     with pytest.raises(EditorToolParameterInvalidError) as exc_info:
         editor(command='view', path=non_existent_path)

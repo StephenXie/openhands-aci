@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -586,26 +585,23 @@ def test_view_large_file_with_truncation(editor, tmp_path):
 def test_validate_path_suggests_absolute_path(editor, tmp_path):
     editor, test_file = editor
 
-    # Create a file with the same name in the current directory
-    # to ensure the suggestion is made
-    current_dir_file = Path(os.getcwd()) / test_file.name
-    try:
-        # Try to create the file, but don't fail if it already exists
-        with open(current_dir_file, 'w') as f:
-            f.write('Test file in current directory')
+    # Since the editor fixture doesn't set workspace_root, we should not get a suggestion
+    relative_path = test_file.name  # This is a relative path
+    with pytest.raises(EditorToolParameterInvalidError) as exc_info:
+        editor(command='view', path=relative_path)
+    error_message = str(exc_info.value.message)
+    assert 'The path should be an absolute path' in error_message
+    assert 'Maybe you meant' not in error_message
 
-        relative_path = test_file.name  # This is a relative path
-        with pytest.raises(EditorToolParameterInvalidError) as exc_info:
-            editor(command='view', path=relative_path)
-        error_message = str(exc_info.value.message)
-        assert 'The path should be an absolute path' in error_message
+    # Now create an editor with workspace_root
+    workspace_editor = OHEditor(workspace_root=str(test_file.parent))
 
-        # If the file exists in the current directory, we should get a suggestion
-        if current_dir_file.exists():
-            assert 'Maybe you meant' in error_message
-            suggested_path = error_message.split('Maybe you meant ')[1].strip('?')
-            assert Path(suggested_path).is_absolute()
-    finally:
-        # Clean up the file we created
-        if current_dir_file.exists():
-            current_dir_file.unlink()
+    # We should get a suggestion now
+    with pytest.raises(EditorToolParameterInvalidError) as exc_info:
+        workspace_editor(command='view', path=relative_path)
+    error_message = str(exc_info.value.message)
+    assert 'The path should be an absolute path' in error_message
+    assert 'Maybe you meant' in error_message
+    suggested_path = error_message.split('Maybe you meant ')[1].strip('?')
+    assert Path(suggested_path).is_absolute()
+    assert str(test_file.parent) in suggested_path
