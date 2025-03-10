@@ -416,10 +416,18 @@ class OHEditor:
         # Check if its an absolute path
         if not path.is_absolute():
             suggested_path = Path(self._cwd) / path
+            suggestion_message = (
+                'The path should be an absolute path, starting with `/`.'
+            )
+
+            # Only suggest the absolute path if it exists
+            if suggested_path.exists():
+                suggestion_message += f' Maybe you meant {suggested_path}?'
+
             raise EditorToolParameterInvalidError(
                 'path',
                 path,
-                f'The path should be an absolute path, starting with `/`. Maybe you meant {suggested_path}?',
+                suggestion_message,
             )
 
         # Check if path and command are compatible

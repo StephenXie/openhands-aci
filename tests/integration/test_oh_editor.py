@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -582,13 +583,29 @@ def test_view_large_file_with_truncation(editor, tmp_path):
     assert FILE_CONTENT_TRUNCATED_NOTICE in result.output
 
 
-def test_validate_path_suggests_absolute_path(editor):
+def test_validate_path_suggests_absolute_path(editor, tmp_path):
     editor, test_file = editor
-    relative_path = test_file.name  # This is a relative path
-    with pytest.raises(EditorToolParameterInvalidError) as exc_info:
-        editor(command='view', path=relative_path)
-    error_message = str(exc_info.value.message)
-    assert 'The path should be an absolute path' in error_message
-    assert 'Maybe you meant' in error_message
-    suggested_path = error_message.split('Maybe you meant ')[1].strip('?')
-    assert Path(suggested_path).is_absolute()
+
+    # Create a file with the same name in the current directory
+    # to ensure the suggestion is made
+    current_dir_file = Path(os.getcwd()) / test_file.name
+    try:
+        # Try to create the file, but don't fail if it already exists
+        with open(current_dir_file, 'w') as f:
+            f.write('Test file in current directory')
+
+        relative_path = test_file.name  # This is a relative path
+        with pytest.raises(EditorToolParameterInvalidError) as exc_info:
+            editor(command='view', path=relative_path)
+        error_message = str(exc_info.value.message)
+        assert 'The path should be an absolute path' in error_message
+
+        # If the file exists in the current directory, we should get a suggestion
+        if current_dir_file.exists():
+            assert 'Maybe you meant' in error_message
+            suggested_path = error_message.split('Maybe you meant ')[1].strip('?')
+            assert Path(suggested_path).is_absolute()
+    finally:
+        # Clean up the file we created
+        if current_dir_file.exists():
+            current_dir_file.unlink()
