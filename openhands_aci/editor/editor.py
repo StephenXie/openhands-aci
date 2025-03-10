@@ -47,17 +47,19 @@ class OHEditor:
     TOOL_NAME = 'oh_editor'
     MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
 
-    def __init__(self, max_file_size_mb: int | None = None):
+    def __init__(self, max_file_size_mb: int | None = None, cwd: str | None = None):
         """Initialize the editor.
 
         Args:
             max_file_size_mb: Maximum file size in MB. If None, uses the default MAX_FILE_SIZE_MB.
+            cwd: Current working directory. If None, uses the current working directory from os.getcwd().
         """
         self._linter = DefaultLinter()
         self._history_manager = FileHistoryManager(max_history_per_file=10)
         self._max_file_size = (
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
         )  # Convert to bytes
+        self._cwd = cwd if cwd is not None else os.getcwd()
 
     def __call__(
         self,
@@ -395,7 +397,7 @@ class OHEditor:
         """
         # Check if its an absolute path
         if not path.is_absolute():
-            suggested_path = Path.cwd() / path
+            suggested_path = Path(self._cwd) / path
             raise EditorToolParameterInvalidError(
                 'path',
                 path,
