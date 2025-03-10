@@ -47,12 +47,18 @@ class OHEditor:
     TOOL_NAME = 'oh_editor'
     MAX_FILE_SIZE_MB = 10  # Maximum file size in MB
 
-    def __init__(self, max_file_size_mb: int | None = None, cwd: str | None = None):
+    def __init__(
+        self,
+        max_file_size_mb: int | None = None,
+        cwd: str | None = None,
+        workspace_root: str | None = None,
+    ):
         """Initialize the editor.
 
         Args:
             max_file_size_mb: Maximum file size in MB. If None, uses the default MAX_FILE_SIZE_MB.
             cwd: Current working directory. If None, uses the current working directory from os.getcwd().
+            workspace_root: Root directory that restricts file access. If None, no path restriction is applied.
         """
         self._linter = DefaultLinter()
         self._history_manager = FileHistoryManager(max_history_per_file=10)
@@ -60,6 +66,9 @@ class OHEditor:
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
         )  # Convert to bytes
         self._cwd = cwd if cwd is not None else os.getcwd()
+        self._workspace_root = (
+            Path(workspace_root) if workspace_root is not None else None
+        )
 
     def __call__(
         self,
@@ -394,6 +403,11 @@ class OHEditor:
     def validate_path(self, command: Command, path: Path) -> None:
         """
         Check that the path/command combination is valid.
+
+        Validates:
+        1. Path is absolute
+        2. Path is within workspace_root (if specified)
+        3. Path and command are compatible
         """
         # Check if its an absolute path
         if not path.is_absolute():
@@ -403,6 +417,27 @@ class OHEditor:
                 path,
                 f'The path should be an absolute path, starting with `/`. Maybe you meant {suggested_path}?',
             )
+
+        # Check if path is within workspace_root (if specified)
+        if self._workspace_root is not None:
+            try:
+                # Resolve to absolute path to handle symlinks and normalize path
+                abs_path = path.resolve()
+                if not abs_path.is_relative_to(self._workspace_root):
+                    raise EditorToolParameterInvalidError(
+                        'path',
+                        path,
+                        f'File access not permitted: {path}. You can only access paths inside the workspace.',
+                    )
+            except (ValueError, RuntimeError):
+                # ValueError can be raised by is_relative_to in some edge cases
+                # RuntimeError can be raised by resolve() if path doesn't exist
+                raise EditorToolParameterInvalidError(
+                    'path',
+                    path,
+                    f'File access not permitted: {path}. You can only access paths inside the workspace.',
+                )
+
         # Check if path and command are compatible
         if command == 'create' and path.exists():
             raise EditorToolParameterInvalidError(
