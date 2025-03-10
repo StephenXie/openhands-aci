@@ -50,24 +50,29 @@ class OHEditor:
     def __init__(
         self,
         max_file_size_mb: int | None = None,
-        cwd: str | None = None,
         workspace_root: str | None = None,
     ):
         """Initialize the editor.
 
         Args:
             max_file_size_mb: Maximum file size in MB. If None, uses the default MAX_FILE_SIZE_MB.
-            cwd: Current working directory. If None, uses the current working directory from os.getcwd().
-            workspace_root: Root directory that restricts file access. If None, no path restriction is applied.
+            workspace_root: Root directory that restricts file access and serves as the current working directory
+                           for relative path suggestions. If None, no path restriction is applied and the current
+                           working directory is used for relative path suggestions.
         """
         self._linter = DefaultLinter()
         self._history_manager = FileHistoryManager(max_history_per_file=10)
         self._max_file_size = (
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
         )  # Convert to bytes
-        self._cwd = cwd if cwd is not None else os.getcwd()
         self._workspace_root = (
             Path(workspace_root) if workspace_root is not None else None
+        )
+        # Use workspace_root as cwd if provided, otherwise use current working directory
+        self._cwd = (
+            str(self._workspace_root)
+            if self._workspace_root is not None
+            else os.getcwd()
         )
 
     def __call__(
