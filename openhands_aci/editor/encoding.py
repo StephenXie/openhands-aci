@@ -107,12 +107,18 @@ def with_encoding(method):
         if path.is_dir():
             return method(self, path, *args, **kwargs)
 
-        # Get encoding from the encoding manager
-        encoding = self._encoding_manager.get_encoding(path)
+        # For files that don't exist yet (like in 'create' command),
+        # use the default encoding
+        if not path.exists():
+            if 'encoding' not in kwargs:
+                kwargs['encoding'] = self._encoding_manager.default_encoding
+        else:
+            # Get encoding from the encoding manager for existing files
+            encoding = self._encoding_manager.get_encoding(path)
 
-        # Add encoding to kwargs if the method accepts it
-        if 'encoding' not in kwargs:
-            kwargs['encoding'] = encoding
+            # Add encoding to kwargs if the method accepts it
+            if 'encoding' not in kwargs:
+                kwargs['encoding'] = encoding
 
         return method(self, path, *args, **kwargs)
 

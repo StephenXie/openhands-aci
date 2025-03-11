@@ -514,8 +514,9 @@ class OHEditor:
         Raises:
             FileValidationError: If the file fails validation
         """
-        if not path.is_file():
-            return  # Skip validation for directories
+        # Skip validation for directories or non-existent files (for create command)
+        if not path.exists() or not path.is_file():
+            return
 
         # Check file size
         file_size = os.path.getsize(path)
