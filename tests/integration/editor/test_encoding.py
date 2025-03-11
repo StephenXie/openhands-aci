@@ -2,11 +2,13 @@
 
 import os
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
 
 from openhands_aci.editor import file_editor
+from openhands_aci.editor.encoding import EncodingManager
 
 
 @pytest.fixture
@@ -81,3 +83,38 @@ def test_encoding_consistency(temp_file):
         assert 'привет, мир!' in decoded
     except UnicodeDecodeError:
         pytest.fail('File was not saved with the correct encoding')
+
+
+def test_encoding_cache_invalidation(temp_file):
+    """Test that the encoding cache is invalidated when a file is modified externally."""
+    # Create a file with UTF-8 encoding
+    with open(temp_file, 'w', encoding='utf-8') as f:
+        f.write('# coding: utf-8\n\n')
+        f.write('text = "Hello, world!"\n')
+
+    # Create an encoding manager
+    encoding_manager = EncodingManager()
+    
+    # Detect the encoding (should be UTF-8 or ASCII)
+    initial_encoding = encoding_manager.detect_encoding(temp_file)
+    assert initial_encoding.lower() in ('utf-8', 'ascii')
+    
+    # Verify the encoding is cached
+    cached_encoding = encoding_manager.get_encoding(temp_file)
+    assert cached_encoding == initial_encoding
+    
+    # Wait a moment to ensure the modification time will be different
+    time.sleep(0.1)
+    
+    # Modify the file with a different encoding
+    with open(temp_file, 'wb') as f:
+        f.write('# coding: cp1251\n\n'.encode('ascii'))
+        f.write('text = u"привет мир"\n'.encode('cp1251'))
+    
+    # Get the encoding again - should detect the new encoding
+    new_encoding = encoding_manager.get_encoding(temp_file)
+    assert new_encoding.lower() in ('windows-1251', 'cp1251')
+    assert new_encoding != initial_encoding
+    
+    # Verify the cache was updated
+    assert encoding_manager._encoding_cache[str(temp_file)][0] == new_encoding

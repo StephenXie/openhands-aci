@@ -10,6 +10,7 @@ class EncodingManager:
 
     def __init__(self):
         # Cache detected encodings to avoid repeated detection on the same file
+        # Format: {path_str: (encoding, mtime)}
         self._encoding_cache = {}
         # Default fallback encoding
         self.default_encoding = 'utf-8'
@@ -26,10 +27,13 @@ class EncodingManager:
             The detected encoding or default encoding if detection fails
         """
         path_str = str(path)
+        current_mtime = os.path.getmtime(path) if path.exists() else 0
 
-        # Return cached encoding if available
+        # Return cached encoding if available and file hasn't been modified
         if path_str in self._encoding_cache:
-            return self._encoding_cache[path_str]
+            cached_encoding, cached_mtime = self._encoding_cache[path_str]
+            if cached_mtime == current_mtime:
+                return cached_encoding
 
         # Use chardet to detect encoding
         import chardet
@@ -49,8 +53,8 @@ class EncodingManager:
             else self.default_encoding
         )
 
-        # Cache the result
-        self._encoding_cache[path_str] = encoding
+        # Cache the result with current modification time
+        self._encoding_cache[path_str] = (encoding, current_mtime)
         return encoding
 
     def get_encoding(self, path: Path) -> str:
@@ -63,9 +67,24 @@ class EncodingManager:
             The encoding for the file
         """
         path_str = str(path)
+
+        # If file doesn't exist, return default encoding
+        if not path.exists():
+            return self.default_encoding
+
+        # If file exists but not in cache or mtime changed, detect encoding
         if path_str not in self._encoding_cache:
             return self.detect_encoding(path)
-        return self._encoding_cache[path_str]
+
+        # Check if the file has been modified since last detection
+        current_mtime = os.path.getmtime(path)
+        cached_encoding, cached_mtime = self._encoding_cache[path_str]
+
+        if current_mtime != cached_mtime:
+            # File has been modified, re-detect encoding
+            return self.detect_encoding(path)
+
+        return cached_encoding
 
     def set_encoding(self, path: Path, encoding: str) -> None:
         """Manually set encoding for a file.
@@ -74,7 +93,8 @@ class EncodingManager:
             path: Path to the file
             encoding: Encoding to set
         """
-        self._encoding_cache[str(path)] = encoding
+        current_mtime = os.path.getmtime(path) if path.exists() else 0
+        self._encoding_cache[str(path)] = (encoding, current_mtime)
 
     def clear_cache(self, path: Path | None = None) -> None:
         """Clear encoding cache for a specific file or all files.
