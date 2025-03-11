@@ -11,6 +11,7 @@ from openhands_aci.linter import DefaultLinter
 from openhands_aci.utils.shell import run_shell_cmd
 
 from .config import SNIPPET_CONTEXT_WINDOW
+from .encoding import EncodingManager, with_encoding
 from .exceptions import (
     EditorToolParameterInvalidError,
     EditorToolParameterMissingError,
@@ -58,6 +59,8 @@ class OHEditor:
         self._max_file_size = (
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
         )  # Convert to bytes
+        # Initialize encoding manager
+        self._encoding_manager = EncodingManager()
 
     def __call__(
         self,
@@ -110,18 +113,39 @@ class OHEditor:
             f'Unrecognized command {command}. The allowed commands for the {self.TOOL_NAME} tool are: {", ".join(get_args(Command))}'
         )
 
-    def _count_lines(self, path: Path) -> int:
+    @with_encoding
+    def _count_lines(self, path: Path, encoding: str = 'utf-8') -> int:
         """
         Count the number of lines in a file safely.
+
+        Args:
+            path: Path to the file
+            encoding: The encoding to use when reading the file (auto-detected by decorator)
+
+        Returns:
+            The number of lines in the file
         """
-        with open(path) as f:
+        with open(path, encoding=encoding) as f:
             return sum(1 for _ in f)
 
+    @with_encoding
     def str_replace(
-        self, path: Path, old_str: str, new_str: str | None, enable_linting: bool
+        self,
+        path: Path,
+        old_str: str,
+        new_str: str | None,
+        enable_linting: bool,
+        encoding: str = 'utf-8',
     ) -> CLIResult:
         """
         Implement the str_replace command, which replaces old_str with new_str in the file content.
+
+        Args:
+            path: Path to the file
+            old_str: String to replace
+            new_str: Replacement string
+            enable_linting: Whether to run linting on the changes
+            encoding: The encoding to use (auto-detected by decorator)
         """
         self.validate_file(path)
         old_str = old_str.expandtabs()
@@ -252,8 +276,16 @@ class OHEditor:
         start_line = 1
         if not view_range:
             file_content = self.read_file(path)
+            # Get the detected encoding
+            encoding = self._encoding_manager.get_encoding(path)
+            output = self._make_output(file_content, str(path), start_line)
+
+            # Add encoding information if it's not UTF-8
+            if encoding.lower() != 'utf-8':
+                output = f'File encoding: {encoding}\n\n{output}'
+
             return CLIResult(
-                output=self._make_output(file_content, str(path), start_line),
+                output=output,
                 path=str(path),
                 prev_exist=True,
             )
@@ -291,27 +323,57 @@ class OHEditor:
             end_line = num_lines
 
         file_content = self.read_file(path, start_line=start_line, end_line=end_line)
+
+        # Get the detected encoding
+        encoding = self._encoding_manager.get_encoding(path)
+        output = self._make_output(file_content, str(path), start_line)
+
+        # Add encoding information if it's not UTF-8
+        if encoding.lower() != 'utf-8':
+            output = f'File encoding: {encoding}\n\n{output}'
+
         return CLIResult(
             path=str(path),
-            output=self._make_output(file_content, str(path), start_line),
+            output=output,
             prev_exist=True,
         )
 
-    def write_file(self, path: Path, file_text: str) -> None:
+    @with_encoding
+    def write_file(self, path: Path, file_text: str, encoding: str = 'utf-8') -> None:
         """
         Write the content of a file to a given path; raise a ToolError if an error occurs.
+
+        Args:
+            path: Path to the file to write
+            file_text: Content to write to the file
+            encoding: The encoding to use when writing the file (auto-detected by decorator)
         """
         self.validate_file(path)
         try:
-            path.write_text(file_text)
+            # Use open with encoding instead of path.write_text
+            with open(path, 'w', encoding=encoding) as f:
+                f.write(file_text)
         except Exception as e:
             raise ToolError(f'Ran into {e} while trying to write to {path}') from None
 
+    @with_encoding
     def insert(
-        self, path: Path, insert_line: int, new_str: str, enable_linting: bool
+        self,
+        path: Path,
+        insert_line: int,
+        new_str: str,
+        enable_linting: bool,
+        encoding: str = 'utf-8',
     ) -> CLIResult:
         """
         Implement the insert command, which inserts new_str at the specified line in the file content.
+
+        Args:
+            path: Path to the file
+            insert_line: Line number where to insert the new content
+            new_str: Content to insert
+            enable_linting: Whether to run linting on the changes
+            encoding: The encoding to use (auto-detected by decorator)
         """
         # Validate file and count lines
         self.validate_file(path)
@@ -328,10 +390,12 @@ class OHEditor:
         new_str_lines = new_str.split('\n')
 
         # Create temporary file for the new content
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding=encoding, delete=False
+        ) as temp_file:
             # Copy lines before insert point and save them for history
             history_lines = []
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding=encoding) as f:
                 for i, line in enumerate(f, 1):
                     if i > insert_line:
                         break
@@ -343,7 +407,7 @@ class OHEditor:
                 temp_file.write(line + '\n')
 
             # Copy remaining lines and save them for history
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding=encoding) as f:
                 for i, line in enumerate(f, 1):
                     if i <= insert_line:
                         continue
@@ -469,11 +533,13 @@ class OHEditor:
                 reason='File appears to be binary. Only text files can be edited.',
             )
 
+    @with_encoding
     def read_file(
         self,
         path: Path,
         start_line: int | None = None,
         end_line: int | None = None,
+        encoding: str = 'utf-8',  # Default will be overridden by decorator
     ) -> str:
         """
         Read the content of a file from a given path; raise a ToolError if an error occurs.
@@ -482,13 +548,14 @@ class OHEditor:
             path: Path to the file to read
             start_line: Optional start line number (1-based). If provided with end_line, only reads that range.
             end_line: Optional end line number (1-based). Must be provided with start_line.
+            encoding: The encoding to use when reading the file (auto-detected by decorator)
         """
         self.validate_file(path)
         try:
             if start_line is not None and end_line is not None:
                 # Read only the specified line range
                 lines = []
-                with open(path, 'r') as f:
+                with open(path, 'r', encoding=encoding) as f:
                     for i, line in enumerate(f, 1):
                         if i > end_line:
                             break
@@ -501,7 +568,7 @@ class OHEditor:
                 )
             else:
                 # Use line-by-line reading to avoid loading entire file into memory
-                with open(path, 'r') as f:
+                with open(path, 'r', encoding=encoding) as f:
                     return ''.join(f)
         except Exception as e:
             raise ToolError(f'Ran into {e} while trying to read {path}') from None
