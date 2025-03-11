@@ -6,8 +6,8 @@ from openhands_aci.editor.editor import OHEditor
 from openhands_aci.editor.exceptions import EditorToolParameterInvalidError
 
 
-def test_workspace_root_as_pwd(tmp_path):
-    """Test that workspace_root is used as the present working directory for path suggestions."""
+def test_workspace_root_as_cwd(tmp_path):
+    """Test that workspace_root is used as the current working directory for path suggestions."""
     # Create a workspace root
     workspace_root = tmp_path / 'workspace'
     workspace_root.mkdir()

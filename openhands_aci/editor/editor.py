@@ -65,8 +65,8 @@ class OHEditor:
         self._max_file_size = (
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
         )  # Convert to bytes
-        # Set pwd (current working directory) if workspace_root is provided
-        self._pwd = Path(workspace_root) if workspace_root is not None else None
+        # Set cwd (current working directory) if workspace_root is provided
+        self._cwd = Path(workspace_root) if workspace_root is not None else None
 
     def __call__(
         self,
@@ -412,9 +412,9 @@ class OHEditor:
                 'The path should be an absolute path, starting with `/`.'
             )
 
-            # Only suggest the absolute path if pwd is provided and the path exists
-            if self._pwd is not None:
-                suggested_path = self._pwd / path
+            # Only suggest the absolute path if cwd is provided and the path exists
+            if self._cwd is not None:
+                suggested_path = self._cwd / path
                 if suggested_path.exists():
                     suggestion_message += f' Maybe you meant {suggested_path}?'
 
