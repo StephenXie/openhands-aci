@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import chardet
+from cachetools import LRUCache
 
 
 class EncodingManager:
@@ -15,16 +16,14 @@ class EncodingManager:
 
     def __init__(self, max_cache_size=None):
         # Cache detected encodings to avoid repeated detection on the same file
-        # Format: {path_str: (encoding, mtime, access_time)}
-        self._encoding_cache = {}
+        # Format: {path_str: (encoding, mtime)}
+        self._encoding_cache = LRUCache(
+            maxsize=max_cache_size or self.DEFAULT_MAX_CACHE_SIZE
+        )
         # Default fallback encoding
         self.default_encoding = 'utf-8'
         # Confidence threshold for encoding detection
         self.confidence_threshold = 0.7
-        # Maximum number of entries in the cache
-        self.max_cache_size = max_cache_size or self.DEFAULT_MAX_CACHE_SIZE
-        # Counter for tracking access time (used for LRU eviction)
-        self._access_counter = 0
 
     def detect_encoding(self, path: Path) -> str:
         """Detect the encoding of a file without handling caching logic.
@@ -55,20 +54,6 @@ class EncodingManager:
 
         return encoding
 
-    def _evict_lru_entry(self):
-        """Evict the least recently used entry from the cache."""
-        if not self._encoding_cache:
-            return
-
-        # Find the entry with the lowest access time
-        lru_path = min(
-            self._encoding_cache.items(),
-            key=lambda item: item[1][2],  # access_time is at index 2
-        )[0]
-
-        # Remove the entry
-        del self._encoding_cache[lru_path]
-
     def get_encoding(self, path: Path) -> str:
         """Get encoding for a file, using cache or detecting if necessary.
 
@@ -79,7 +64,6 @@ class EncodingManager:
             The encoding for the file
         """
         path_str = str(path)
-        self._access_counter += 1  # Increment access counter
 
         # If file doesn't exist, return default encoding
         if not path.exists():
@@ -90,25 +74,15 @@ class EncodingManager:
 
         # Check cache for valid entry
         if path_str in self._encoding_cache:
-            cached_encoding, cached_mtime, _ = self._encoding_cache[path_str]
+            cached_encoding, cached_mtime = self._encoding_cache[path_str]
             if cached_mtime == current_mtime:
-                # Update access time for this entry
-                self._encoding_cache[path_str] = (
-                    cached_encoding,
-                    cached_mtime,
-                    self._access_counter,
-                )
                 return cached_encoding
 
         # No valid cache entry, detect encoding
         encoding = self.detect_encoding(path)
 
-        # Check if cache is at capacity before adding new entry
-        if len(self._encoding_cache) >= self.max_cache_size:
-            self._evict_lru_entry()
-
-        # Cache the result with current modification time and access time
-        self._encoding_cache[path_str] = (encoding, current_mtime, self._access_counter)
+        # Cache the result with current modification time
+        self._encoding_cache[path_str] = (encoding, current_mtime)
         return encoding
 
 
