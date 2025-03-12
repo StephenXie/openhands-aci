@@ -79,27 +79,6 @@ class EncodingManager:
         self._encoding_cache[path_str] = (encoding, current_mtime)
         return encoding
 
-    def set_encoding(self, path: Path, encoding: str) -> None:
-        """Manually set encoding for a file.
-
-        Args:
-            path: Path to the file
-            encoding: Encoding to set
-        """
-        current_mtime = os.path.getmtime(path) if path.exists() else 0
-        self._encoding_cache[str(path)] = (encoding, current_mtime)
-
-    def clear_cache(self, path: Path | None = None) -> None:
-        """Clear encoding cache for a specific file or all files.
-
-        Args:
-            path: Path to the file to clear from cache, or None to clear all
-        """
-        if path:
-            self._encoding_cache.pop(str(path), None)
-        else:
-            self._encoding_cache.clear()
-
 
 def with_encoding(method):
     """Decorator to handle file encoding for file operations.
