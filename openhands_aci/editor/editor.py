@@ -57,9 +57,8 @@ class OHEditor:
         Args:
             max_file_size_mb: Maximum file size in MB. If None, uses the default MAX_FILE_SIZE_MB.
             workspace_root: Root directory that serves as the current working directory for relative path
-                           suggestions. Can be an absolute or relative path. If relative, it will be
-                           converted to an absolute path. If None, no path suggestions will be provided
-                           for relative paths.
+                           suggestions. Must be an absolute path. If None, no path suggestions will be
+                           provided for relative paths.
         """
         self._linter = DefaultLinter()
         self._history_manager = FileHistoryManager(max_history_per_file=10)
@@ -67,15 +66,14 @@ class OHEditor:
             (max_file_size_mb or self.MAX_FILE_SIZE_MB) * 1024 * 1024
         )  # Convert to bytes
         # Set cwd (current working directory) if workspace_root is provided
-        # Ensure workspace_root is an absolute path if provided
         if workspace_root is not None:
             workspace_path = Path(workspace_root)
-            # Convert to absolute path if it's a relative path
-            self._cwd = (
-                workspace_path
-                if workspace_path.is_absolute()
-                else workspace_path.absolute()
-            )
+            # Ensure workspace_root is an absolute path
+            if not workspace_path.is_absolute():
+                raise ValueError(
+                    f'workspace_root must be an absolute path, got: {workspace_root}'
+                )
+            self._cwd = workspace_path
         else:
             self._cwd = None  # type: ignore
 
