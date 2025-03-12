@@ -93,12 +93,9 @@ match = re.search(
     # Validate the formatted output in the result dictionary
     formatted_output = result_dict['formatted_output_and_error']
 
-    # Remove encoding information if present
-    if formatted_output.startswith('File encoding:'):
-        # Skip the encoding line and the blank line after it
-        formatted_output = '\n'.join(formatted_output.split('\n')[2:])
-
-    expected_output = f"""Here's the result of running `cat -n` on {temp_file}:
+    assert (
+        formatted_output
+        == f"""Here's the result of running `cat -n` on {temp_file}:
      1\tThis is a file with XML tags parsing logic...
      2\tmatch = re.search(
      3\t    r'<oh_aci_output_[0-9a-f]{{32}}>(.*?)</oh_aci_output_[0-9a-f]{{32}}>',
@@ -108,7 +105,7 @@ match = re.search(
      7\t...More text here.
      8\t
 """
-    assert formatted_output == expected_output
+    )
 
 
 def test_successful_operations(temp_file):

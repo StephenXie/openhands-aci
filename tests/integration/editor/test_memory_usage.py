@@ -56,7 +56,7 @@ def test_file_read_memory_usage(temp_file):
     # Allow for some overhead but it should be much less than file size
     # Increased to 3MB to account for chardet's memory usage
     max_growth_mb = 3  # 3MB max growth
-    assert memory_growth < max_growth_mb * 1024 * 1024, (
+    assert memory_growth <= max_growth_mb * 1024 * 1024, (
         f'Memory growth too high: {memory_growth / 1024 / 1024:.2f} MB '
         f'(limit: {max_growth_mb} MB)'
     )

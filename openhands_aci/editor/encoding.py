@@ -4,6 +4,8 @@ import functools
 import os
 from pathlib import Path
 
+import chardet
+
 
 class EncodingManager:
     """Manages file encodings across multiple operations to ensure consistency."""
@@ -34,9 +36,6 @@ class EncodingManager:
             cached_encoding, cached_mtime = self._encoding_cache[path_str]
             if cached_mtime == current_mtime:
                 return cached_encoding
-
-        # Use chardet to detect encoding
-        import chardet
 
         # Read a sample of the file to detect encoding
         # Reading the whole file could be slow for large files

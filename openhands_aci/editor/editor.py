@@ -276,13 +276,7 @@ class OHEditor:
         start_line = 1
         if not view_range:
             file_content = self.read_file(path)
-            # Get the detected encoding
-            encoding = self._encoding_manager.get_encoding(path)
             output = self._make_output(file_content, str(path), start_line)
-
-            # Add encoding information if it's not UTF-8
-            if encoding.lower() != 'utf-8':
-                output = f'File encoding: {encoding}\n\n{output}'
 
             return CLIResult(
                 output=output,
@@ -325,12 +319,7 @@ class OHEditor:
         file_content = self.read_file(path, start_line=start_line, end_line=end_line)
 
         # Get the detected encoding
-        encoding = self._encoding_manager.get_encoding(path)
         output = self._make_output(file_content, str(path), start_line)
-
-        # Add encoding information if it's not UTF-8
-        if encoding.lower() != 'utf-8':
-            output = f'File encoding: {encoding}\n\n{output}'
 
         return CLIResult(
             path=str(path),
