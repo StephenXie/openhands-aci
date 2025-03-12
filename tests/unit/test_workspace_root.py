@@ -43,6 +43,40 @@ def test_workspace_root_as_cwd(tmp_path):
     assert 'Maybe you meant' not in error_message
 
 
+def test_relative_workspace_root_conversion(tmp_path, monkeypatch):
+    """Test that a relative workspace_root is converted to an absolute path."""
+    # Set up a directory structure
+    current_dir = tmp_path / 'current_dir'
+    current_dir.mkdir()
+    workspace_dir = current_dir / 'workspace'
+    workspace_dir.mkdir()
+
+    # Create a test file in the workspace directory
+    test_file = workspace_dir / 'test.txt'
+    test_file.write_text('This is a test file')
+
+    # Change to the current directory
+    monkeypatch.chdir(current_dir)
+
+    # Initialize editor with a relative workspace_root
+    editor = OHEditor(workspace_root='workspace')
+
+    # Test that the relative path suggestion uses the absolute workspace path
+    relative_path = 'test.txt'
+    with pytest.raises(EditorToolParameterInvalidError) as exc_info:
+        editor(command='view', path=relative_path)
+
+    error_message = str(exc_info.value.message)
+    assert 'The path should be an absolute path' in error_message
+    assert 'Maybe you meant' in error_message
+
+    # Extract the suggested path from the error message
+    suggested_path = error_message.split('Maybe you meant ')[1].strip('?')
+    assert Path(suggested_path).is_absolute()
+    # The suggested path should contain the absolute path to the workspace
+    assert str(workspace_dir.absolute()) in suggested_path
+
+
 def test_no_suggestion_when_no_workspace_root(tmp_path, monkeypatch):
     """Test that no path suggestion is made when workspace_root is not provided."""
     # Create a temporary file in the current directory
