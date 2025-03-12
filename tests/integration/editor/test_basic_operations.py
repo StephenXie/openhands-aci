@@ -92,7 +92,6 @@ match = re.search(
 
     # Validate the formatted output in the result dictionary
     formatted_output = result_dict['formatted_output_and_error']
-
     assert (
         formatted_output
         == f"""Here's the result of running `cat -n` on {temp_file}:
