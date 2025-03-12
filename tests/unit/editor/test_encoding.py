@@ -204,3 +204,34 @@ def test_with_encoding_respects_provided_encoding():
                 result = editor.read_file(Path('/some/file.txt'), encoding='iso-8859-1')
                 # The provided encoding should be used, not the detected one
                 assert result == 'Reading file with encoding: iso-8859-1'
+
+
+def test_cache_size_limit(encoding_manager, temp_file):
+    """Test that the cache size is limited and LRU entries are evicted."""
+    # Create a small cache for testing
+    encoding_manager.max_cache_size = 3
+
+    # Create a file
+    with open(temp_file, 'w', encoding='utf-8') as f:
+        f.write('Test file')
+
+    # Create 4 different paths (using the same file but with different paths)
+    paths = [Path(f'{temp_file}.{i}') for i in range(4)]
+
+    # Mock exists and getmtime to return consistent values
+    with patch.object(Path, 'exists', return_value=True):
+        with patch.object(os.path, 'getmtime', return_value=123456):
+            with patch.object(
+                encoding_manager, 'detect_encoding', return_value='utf-8'
+            ):
+                # Access paths in order 0, 1, 2, 3
+                for i, path in enumerate(paths):
+                    encoding_manager.get_encoding(path)
+                    # After adding 4th item, the cache should still have 3 items
+                    if i == 3:
+                        assert len(encoding_manager._encoding_cache) == 3
+                        # Path 0 should have been evicted (LRU)
+                        assert str(paths[0]) not in encoding_manager._encoding_cache
+                        # Paths 1, 2, 3 should still be in the cache
+                        for j in range(1, 4):
+                            assert str(paths[j]) in encoding_manager._encoding_cache
